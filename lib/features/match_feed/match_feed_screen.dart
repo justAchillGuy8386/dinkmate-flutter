@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/api/match_service.dart';
 import '../../core/utils/models.dart';
+import '../check_in/qr_scanner_screen.dart';
 
 class MatchFeedScreen extends StatelessWidget {
   final String userName;
@@ -16,9 +17,21 @@ class MatchFeedScreen extends StatelessWidget {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(icon: const Icon(Icons.qr_code_scanner), onPressed: () {
-            // Lát nữa chúng ta sẽ code nút quét QR ở đây
-          }),
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () async {
+              // Mở màn hình Camera và chờ kết quả trả về
+              final qrResult = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const QrScannerScreen()),
+              );
+
+              // Nếu có kết quả quét, in thử ra xem
+              if (qrResult != null) {
+                print("Mã QR thu được từ Camera: $qrResult");
+              }
+            },
+          ),
         ],
       ),
       body: FutureBuilder<List<MatchRequest>>(
