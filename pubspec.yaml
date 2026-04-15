@@ -40,6 +40,8 @@ dependencies:
   provider: ^6.1.2
 
   google_fonts: ^6.2.1
+  mobile_scanner: ^7.2.0 # thư viện dùng qr máy ảnh, dùng để quét qr nhận kèo
+  image_picker: ^1.2.1 # thư viện truy cập album ảnh, dùng để quét qr ảnh tĩnh
 
 dev_dependencies:
   flutter_test:
