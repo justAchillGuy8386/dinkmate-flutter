@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:image_picker/image_picker.dart'; // Thư viện chọn ảnh mới thêm
 
 class QrScannerScreen extends StatefulWidget {
   const QrScannerScreen({super.key});
@@ -9,36 +10,72 @@ class QrScannerScreen extends StatefulWidget {
 }
 
 class _QrScannerScreenState extends State<QrScannerScreen> {
-  // Biến cờ để tránh việc quét 1 mã QR liên tục hàng chục lần trong 1 giây
   bool _isScanned = false;
+
+  // Tạo bộ điều khiển riêng cho Scanner để có thể gọi hàm quét ảnh tĩnh
+  final MobileScannerController _scannerController = MobileScannerController();
+  final ImagePicker _picker = ImagePicker();
 
   void _handleQrScanned(BarcodeCapture capture) {
     if (_isScanned) return;
 
     final List<Barcode> barcodes = capture.barcodes;
     if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-      final String qrData = barcodes.first.rawValue!;
-
-      setState(() {
-        _isScanned = true; // Khóa lại, không cho quét nữa
-      });
-
-      // Tạm thời in ra màn hình, lát nữa chúng ta sẽ gọi API Check-in tại đây
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã quét được mã: $qrData'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-      // Đóng màn hình quét, trả dữ liệu về màn hình trước
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-          Navigator.pop(context, qrData);
-        }
-      });
+      _processScannedData(barcodes.first.rawValue!);
     }
+  }
+
+  // Hàm xử lý chung khi quét thành công (từ Camera hoặc từ Ảnh)
+  void _processScannedData(String qrData) {
+    setState(() {
+      _isScanned = true;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đã quét được mã: $qrData'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        Navigator.pop(context, qrData);
+      }
+    });
+  }
+
+  // Hàm MỚI: Mở thư viện ảnh và quét
+  Future<void> _scanFromGallery() async {
+    if (_isScanned) return;
+
+    // 1. Mở thư viện để chọn ảnh
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return; // Người dùng bấm Hủy không chọn nữa
+
+    // 2. Đưa ảnh vào MobileScanner để phân tích
+    final BarcodeCapture? capture = await _scannerController.analyzeImage(image.path);
+
+    // 3. Xử lý kết quả
+    if (capture != null && capture.barcodes.isNotEmpty && capture.barcodes.first.rawValue != null) {
+      _processScannedData(capture.barcodes.first.rawValue!);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không tìm thấy mã QR nào trong ảnh này!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scannerController.dispose(); // Nhớ dọn dẹp bộ nhớ khi đóng màn hình
+    super.dispose();
   }
 
   @override
@@ -51,19 +88,13 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       ),
       body: Stack(
         children: [
-          // Khung Camera
           MobileScanner(
+            controller: _scannerController, // Gắn Controller vào Camera
             onDetect: _handleQrScanned,
           ),
 
-          // Lớp phủ làm mờ xung quanh (Tạo hiệu ứng khung ngắm)
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
-            ),
-          ),
+          Container(decoration: BoxDecoration(color: Colors.black.withOpacity(0.5))),
 
-          // Khung vuông ở giữa màn hình
           Center(
             child: Container(
               width: 250,
@@ -75,9 +106,8 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             ),
           ),
 
-          // Dòng chữ hướng dẫn
           const Positioned(
-            bottom: 100,
+            bottom: 120,
             left: 0,
             right: 0,
             child: Text(
@@ -86,6 +116,26 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
               style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
+
+          // NÚT MỚI: Tải ảnh lên
+          Positioned(
+            bottom: 40,
+            left: 40,
+            right: 40,
+            child: ElevatedButton.icon(
+              onPressed: _scanFromGallery,
+              icon: const Icon(Icons.photo_library),
+              label: const Text('Tải ảnh QR từ Thư viện'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+          )
         ],
       ),
     );
