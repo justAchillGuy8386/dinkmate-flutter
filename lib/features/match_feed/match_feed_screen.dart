@@ -16,23 +16,6 @@ class MatchFeedScreen extends StatelessWidget {
         title: const Text('Kèo Đấu Đang Chờ', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
-            onPressed: () async {
-              // Mở màn hình Camera và chờ kết quả trả về
-              final qrResult = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const QrScannerScreen()),
-              );
-
-              // Nếu có kết quả quét, in thử ra xem
-              if (qrResult != null) {
-                print("Mã QR thu được từ Camera: $qrResult");
-              }
-            },
-          ),
-        ],
       ),
       body: FutureBuilder<List<MatchRequest>>(
         future: MatchService.getAvailableMatches(),
@@ -65,15 +48,58 @@ class MatchFeedScreen extends StatelessWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('ELO: ${match.creatorElo} • ${match.courtName}'),
+                      Text('ELO: ${match.creatorElo} '),
+                      Text('Sân: ${match.courtName}'),
                       const SizedBox(height: 4),
                       Text('Bắt đầu: ${match.startTime.hour}:${match.startTime.minute}', style: const TextStyle(color: Colors.blue)),
                     ],
                   ),
-                  trailing: ElevatedButton(
-                    onPressed: () { /* Code tham gia kèo */ },
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                    child: const Text('Vào kèo'),
+                  trailing: ElevatedButton.icon(
+                    icon: const Icon(Icons.qr_code_scanner, size: 18),
+                    label: const Text('Check-in'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () async {
+                      // Mở Camera quét QR
+                      final qrResult = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const QrScannerScreen()),
+                      );
+
+                      // Nếu quét có kết quả, gọi API gửi lên Server
+                      if (qrResult != null) {
+                        try {
+                          // Bắn thông báo đang xử lý
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Đang xác thực mã QR...')),
+                          );
+
+                          // Gọi API Check-in
+                          await MatchService.checkIn(
+                              match.id,
+                              "249629d4-6cd8-4403-8607-17bb70766347", // Ở bản hoàn thiện, ta sẽ lấy ID thực tế của user đang đăng nhập
+                              qrResult.toString()
+                          );
+
+                          // Báo thành công
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Check-in thành công! Chúc bạn chơi vui vẻ.'), backgroundColor: Colors.green),
+                            );
+                          }
+                        } catch (e) {
+                          // Báo lỗi nếu quét sai sân hoặc Server từ chối
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      }
+                    },
                   ),
                 ),
               );
