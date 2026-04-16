@@ -6,4 +6,5 @@ class ApiConfig {
   static const String users = '$baseUrl/users';
   static const String matches = '$baseUrl/matches';
   static const String matchRequests = '$baseUrl/match-requests';
+  static const String checkIn = '$baseUrl/matches/check-in';
 }

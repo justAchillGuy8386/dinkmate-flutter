@@ -13,13 +13,26 @@ class MatchRequest {
     required this.startTime,
   });
 
+// Chuyển JSON từ Server thành Object MatchRequest
   factory MatchRequest.fromJson(Map<String, dynamic> json) {
+    // Tách các cục dữ liệu lồng nhau
+    final creatorData = json['creator'];
+    final courtData = json['court'];
+
     return MatchRequest(
-      id: json['id'],
-      creatorName: json['user']['full_name'],
-      creatorElo: json['user']['elo_rating'],
-      courtName: json['court_name'] ?? 'Sân chưa xác định',
-      startTime: DateTime.parse(json['start_time']),
+      id: json['id'] ?? '',
+
+      // Móc dữ liệu từ trong cục creator
+      creatorName: creatorData != null ? creatorData['full_name'] ?? 'Người chơi Ẩn danh' : 'Người chơi Ẩn danh',
+      creatorElo: creatorData != null ? creatorData['elo_rating'] ?? 1000 : 1000,
+
+      // Móc tên sân từ trong cục court
+      courtName: courtData != null ? courtData['name'] ?? 'Sân chưa xác định' : 'Sân chưa xác định',
+
+      //  Xử lý thời gian an toàn
+      startTime: json['scheduled_time'] != null
+          ? DateTime.parse(json['scheduled_time'])
+          : DateTime.now(),
     );
   }
 }
