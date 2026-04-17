@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/api/auth_service.dart';
-import '../match_feed/match_feed_screen.dart';
+import '../../features/main_wrapper_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => MatchFeedScreen(
+            builder: (context) => MainWrapper(
               userName: userData['full_name'],
               elo: userData['elo_rating'],
             ),
