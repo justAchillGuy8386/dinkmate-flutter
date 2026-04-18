@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../core/api/user_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userName;
-  final int elo;
+  final int elo; // Đây là ELO cũ từ lúc đăng nhập, ta sẽ dùng nó làm dữ liệu dự phòng (fallback)
+  final String userId = "249629d4-6cd8-4403-8607-17bb70766347";
 
   const ProfileScreen({super.key, required this.userName, required this.elo});
 
@@ -11,84 +13,100 @@ class ProfileScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Hồ Sơ Cá Nhân', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Hồ Sơ Cá Nhân'),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // 1. Header Section
-            Container(
-              color: Colors.green,
-              width: double.infinity,
-              padding: const EdgeInsets.only(bottom: 30),
-              child: Column(
-                children: [
-                  const CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, size: 60, color: Colors.green),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: UserService.getUserStats(userId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Colors.green));
+          }
+
+          // Trích xuất dữ liệu mới, nếu lỗi thì dùng tạm dữ liệu cũ
+          final hasData = snapshot.hasData && !snapshot.hasError;
+          final currentElo = hasData ? snapshot.data!['elo'] : elo;
+          final totalMatches = hasData ? snapshot.data!['total_matches'].toString() : '0';
+          final wins = hasData ? snapshot.data!['wins'].toString() : '0';
+          final winRate = hasData ? '${snapshot.data!['win_rate']}%' : '0%';
+
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                // 1. Header Section
+                Container(
+                  color: Colors.green,
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(bottom: 30),
+                  child: Column(
+                    children: [
+                      const CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.person, size: 60, color: Colors.green),
+                      ),
+                      const SizedBox(height: 15),
+                      Text(
+                        userName,
+                        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'ELO: $currentElo',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 15),
-                  Text(
-                    userName,
-                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+
+                // 2. Stats Section
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      _buildStatItem('Trận đấu', totalMatches),
+                      _buildStatItem('Thắng', wins),
+                      _buildStatItem('Tỉ lệ', winRate),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                ),
+
+                // 3. Menu Options
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(15),
                     ),
-                    child: Text(
-                      'ELO: $elo',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    child: Column(
+                      children: [
+                        _buildMenuItem(Icons.history, 'Lịch sử kèo đấu'),
+                        const Divider(height: 1),
+                        _buildMenuItem(Icons.workspace_premium, 'Thành tích & Huy hiệu'),
+                        const Divider(height: 1),
+                        _buildMenuItem(Icons.settings, 'Cài đặt tài khoản'),
+                        const Divider(height: 1),
+                        _buildMenuItem(Icons.help_outline, 'Hỗ trợ & Góp ý'),
+                        const Divider(height: 1),
+                        _buildMenuItem(Icons.logout, 'Đăng xuất', isLogout: true),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            // 2. Stats Section
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  _buildStatItem('Trận đấu', '24'),
-                  _buildStatItem('Thắng', '15'),
-                  _buildStatItem('Tỉ lệ', '62%'),
-                ],
-              ),
-            ),
-
-            // 3. Menu Options
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
                 ),
-                child: Column(
-                  children: [
-                    _buildMenuItem(Icons.history, 'Lịch sử kèo đấu'),
-                    const Divider(height: 1),
-                    _buildMenuItem(Icons.workspace_premium, 'Thành tích & Huy hiệu'),
-                    const Divider(height: 1),
-                    _buildMenuItem(Icons.settings, 'Cài đặt tài khoản'),
-                    const Divider(height: 1),
-                    _buildMenuItem(Icons.help_outline, 'Hỗ trợ & Góp ý'),
-                    const Divider(height: 1),
-                    _buildMenuItem(Icons.logout, 'Đăng xuất', isLogout: true),
-                  ],
-                ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
