@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+    <string>DinkMate cần quyền truy cập Camera để quét mã QR check-in tại sân.</string>
 </dict>
 </plist>
