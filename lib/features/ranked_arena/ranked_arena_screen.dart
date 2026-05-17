@@ -1,3 +1,4 @@
+import 'package:dinkmate_flutter/features/match_detail/match_detail_screen.dart';
 import 'package:flutter/material.dart';
 
 class RankedArenaScreen extends StatefulWidget {
@@ -72,7 +73,19 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
               backgroundColor: Colors.green,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push (
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MatchDetailScreen(
+                    matchId: "id_gia_lap_1",
+                    opponentName: "Tô Tổng Văn Giang Hưng Yên",
+                    opponentElo: 2680,
+                  ),
+                ),
+              );
+            },
             child: const Text("XEM CHI TIẾT KÈO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
