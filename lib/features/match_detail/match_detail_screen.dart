@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../features/check_in/qr_scanner_screen.dart';
+import '../../core/api/check_in_service.dart';
 
 class MatchDetailScreen extends StatelessWidget {
   final String matchId;
@@ -89,25 +90,52 @@ class MatchDetailScreen extends StatelessWidget {
                   height: 60,
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                      // Mở màn hình quét và đợi kết quả trả về
+                      //  Mở màn hình quét và đợi kết quả
                       final String? scannedQrCode = await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const QrScannerScreen()),
                       );
 
-                      // Nếu người dùng quét thành công (không bấm nút Back)
+                      //  Nếu người dùng có quét (không bấm nút Back)
                       if (scannedQrCode != null && context.mounted) {
-                        // Tạm thời hiển thị popup báo cáo kết quả quét
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Đã quét thành công mã: $scannedQrCode\nĐang gửi lên Server...'),
-                            backgroundColor: Colors.green,
-                            duration: const Duration(seconds: 3),
-                          ),
+
+                        // Hiển thị vòng xoay Loading để người dùng biết app đang xử lý
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.green)),
                         );
 
-                        // SAU NÀY SẼ GỌI API NEXT.JS Ở ĐÂY:
-                        // await CheckInService.verifyQrCode(matchId, scannedQrCode);
+                        // GỌI API LÊN NEXT.JS
+                        //  thay "id_nguoi_choi_cua_ban" bằng ID thật lấy từ thông tin đăng nhập
+                        final result = await CheckInService.verifyQrCode(
+                            matchId,
+                            "b6449078-b9b8-4f5d-81a0-4d76ce411235", // độ xu xi
+                            scannedQrCode
+                        );
+
+                        // Đóng vòng xoay Loading
+                        if (context.mounted) Navigator.pop(context);
+
+                        //  Xử lý kết quả trả về từ Server
+                        if (result != null && result.startsWith("ERROR:")) {
+                          // Báo lỗi bằng màu đỏ (VD: Sai sân, QR không hợp lệ)
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(result.replaceAll("ERROR: ", "")), backgroundColor: Colors.red),
+                          );
+                        } else {
+                          // Thành công!
+                          if (result == 'In_Progress') {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Cả 2 đã Check-in! Trận đấu BẮT ĐẦU 🚀"), backgroundColor: Colors.green),
+                            );
+                            // Tùy chọn: Chuyển sang màn hình Ghi Điểm (Scoreboard) ở đây
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Check-in thành công! Đang chờ đối thủ..."), backgroundColor: Colors.orange),
+                            );
+                          }
+                        }
                       }
                     },
                     icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
