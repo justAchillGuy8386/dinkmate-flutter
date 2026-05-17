@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:image_picker/image_picker.dart'; // Thư viện chọn ảnh mới thêm
+import 'package:image_picker/image_picker.dart';
 
 class QrScannerScreen extends StatefulWidget {
   const QrScannerScreen({super.key});
