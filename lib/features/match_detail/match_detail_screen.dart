@@ -99,6 +99,8 @@ class MatchDetailScreen extends StatelessWidget {
                       //  Nếu người dùng có quét (không bấm nút Back)
                       if (scannedQrCode != null && context.mounted) {
 
+                        print("Scanned QR Code: `$scannedQrCode`");
+
                         // Hiển thị vòng xoay Loading để người dùng biết app đang xử lý
                         showDialog(
                           context: context,
