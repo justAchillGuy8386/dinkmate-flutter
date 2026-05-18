@@ -5,7 +5,7 @@ import '../../core/api/check_in_service.dart';
 class MatchDetailScreen extends StatelessWidget {
   final String matchId;
   final String opponentName;
-  final int opponentElo;
+  final int opponentElo;  
 
   const MatchDetailScreen({
     super.key,
@@ -107,10 +107,9 @@ class MatchDetailScreen extends StatelessWidget {
                         );
 
                         // GỌI API LÊN NEXT.JS
-                        //  thay "id_nguoi_choi_cua_ban" bằng ID thật lấy từ thông tin đăng nhập
                         final result = await CheckInService.verifyQrCode(
-                            matchId,
-                            "b6449078-b9b8-4f5d-81a0-4d76ce411235", // độ xu xi
+                            "id_test2",
+                            "249629d4-6cd8-4403-8607-17bb70766347", // tín nguyễn
                             scannedQrCode
                         );
 
