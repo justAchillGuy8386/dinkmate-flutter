@@ -10,12 +10,12 @@ class CheckInService {
   static Future<String?> verifyQrCode(String matchId, String playerId, String qrCode) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/check-in'),
+        Uri.parse('$baseUrl/matches/check-in'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'match_id': matchId,
           'player_id': playerId,
-          'qr_code_value': qrCode,
+          'scanned_qr_code': qrCode,
         }),
       );
 
