@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../features/check_in/qr_scanner_screen.dart';
+import '../../features/match_detail/submit_score_screen.dart';
 import '../../core/api/check_in_service.dart';
 
 class MatchDetailScreen extends StatelessWidget {
@@ -111,7 +112,7 @@ class MatchDetailScreen extends StatelessWidget {
                         // GỌI API LÊN NEXT.JS
                         final result = await CheckInService.verifyQrCode(
                             "id_test2",
-                            "249629d4-6cd8-4403-8607-17bb70766347", // tín nguyễn
+                            "b6449078-b9b8-4f5d-81a0-4d76ce411235", // tín nguyễn
                             scannedQrCode
                         );
 
@@ -129,6 +130,17 @@ class MatchDetailScreen extends StatelessWidget {
                           if (result == 'In_Progress') {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text("Cả 2 đã Check-in! Trận đấu BẮT ĐẦU 🚀"), backgroundColor: Colors.green),
+                            );
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => SubmitScoreScreen(
+                                  matchId: "id_test2",
+                                  playerAId: "b6449078-b9b8-4f5d-81a0-4d76ce411235", // ID thật 249629d4-6cd8-4403-8607-17bb70766347
+                                  playerBId: "249629d4-6cd8-4403-8607-17bb70766347", // ID đối thủ
+                                  opponentName: opponentName,
+                                ),
+                              ),
                             );
                             // Tùy chọn: Chuyển sang màn hình Ghi Điểm (Scoreboard) ở đây
                           } else {

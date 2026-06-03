@@ -70,4 +70,36 @@ class MatchService {
       print("Lỗi kết nối mạng: $e");
     }
   }
+
+  static Future<bool> submitMatchScore({
+    required String matchId,
+    required String winnerId,
+    required String scoresData,
+    required String intensityFeedback,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/matches/submit-score'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'match_id': matchId,
+          'winner_id': winnerId,
+          'scores_data': scoresData,
+          'intensity_feedback': intensityFeedback,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print("Cập nhật ELO thành công từ Server!");
+        return true;
+      } else {
+        final data = jsonDecode(response.body);
+        print("Lỗi từ server: ${data['error']}");
+        return false;
+      }
+    } catch (e) {
+      print("Lỗi kết nối mạng khi submit score: $e");
+      return false;
+    }
+  }
 }
