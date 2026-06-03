@@ -59,11 +59,11 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
           children: [
             Icon(Icons.check_circle_outline, color: Colors.green, size: 60),
             SizedBox(height: 10),
-            Text("ĐÃ TÌM THẤY TRẬN!", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+            Text("GHÉP TRẬN THÀNH CÔNG!", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 20), textAlign: TextAlign.center,),
           ],
         ),
         content: const Text(
-          "AI đã ghép cặp thành công.\nĐối thủ của bạn đang chờ. Hãy di chuyển ra sân để Check-in mã QR!",
+          "Hệ thống đã ghép cặp thành công.\nĐối thủ của bạn đang chờ. Hãy di chuyển ra sân để Check-in mã QR!",
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
@@ -123,8 +123,8 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🔥 ĐẤU TRƯỜNG RANK', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: Colors.green,
+        title: const Text('ĐẤU XẾP HẠNG', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        backgroundColor: Colors.deepOrange,
         centerTitle: true,
         elevation: 0,
       ),
@@ -166,7 +166,7 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
                       height: _isSearching ? 130 : 160,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _isSearching ? Colors.grey[400] : Colors.green,
+                        color: _isSearching ? Colors.grey[400] : Colors.deepOrange,
                         boxShadow: [
                           BoxShadow(
                             color: Colors.green.withOpacity(0.4),
@@ -217,7 +217,7 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
                   Icon(Icons.workspace_premium, color: Colors.amber),
                   SizedBox(width: 8),
                   Text("ELO hiện tại của bạn: ", style: TextStyle(color: Colors.grey)),
-                  Text("1166", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green)),
+                  Text("1166", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepOrange)),
                 ],
               ),
             ),
