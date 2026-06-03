@@ -14,7 +14,7 @@ class CheckInService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'match_id': matchId,
-          'player_id': playerId,
+          'player_id': "249629d4-6cd8-4403-8607-17bb70766347", // "249629d4-6cd8-4403-8607-17bb70766347" id player B test
           'scanned_qr_code': qrCode,
         }),
       );
@@ -23,7 +23,7 @@ class CheckInService {
 
       if (response.statusCode == 200) {
         // Trả về trạng thái của trận đấu (Pending hoặc In_Progress)
-        return data['status'];
+        return data['data']['status'];
       } else {
         // Nếu lỗi (mã QR sai, không tìm thấy trận, v.v.)
         print("Server báo lỗi: ${data['error']}");
