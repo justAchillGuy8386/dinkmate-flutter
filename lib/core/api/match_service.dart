@@ -102,4 +102,21 @@ class MatchService {
       return false;
     }
   }
+
+  static Future<Map<String, dynamic>?> requestMatch(String userId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/match-requests/find'), // API tạo yêu cầu ghép trận
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'player_id': userId, 'is_ranked': true}),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['match']; // Trả về thông tin trận đấu (gồm ID và Đối thủ)
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
 }
