@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/api/user_service.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -8,17 +9,22 @@ class LeaderboardScreen extends StatefulWidget {
 }
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
-  // Dữ liệu giả lập (Mock data)
-  final List<Map<String, dynamic>> _topPlayers = [
-    {"name": "Độ Sushi", "elo": 2850, "avatar": "https://i.pravatar.cc/150?u=1"},
-    {"name": "Kiên Nguyễn", "elo": 2720, "avatar": "https://i.pravatar.cc/150?u=2"},
-    {"name": "Mộ Xum Xuê", "elo": 2680, "avatar": "https://i.pravatar.cc/150?u=3"},
-    {"name": "Bác Tôi", "elo": 2100, "avatar": "https://i.pravatar.cc/150?u=4"},
-    {"name": "Lộ IP", "elo": 1950, "avatar": "https://i.pravatar.cc/150?u=5"},
-    {"name": "Nộm Kim Chi", "elo": 1500, "avatar": "https://i.pravatar.cc/150?u=6"},
-    {"name": "Độ Mitsubishi", "elo": 1166, "avatar": "https://i.pravatar.cc/150?u=7"},
-    {"name": "Dùng Thanh Nộ", "elo": 800, "avatar": "https://i.pravatar.cc/150?u=8"},
-  ];
+  // Biến chứa future gọi API
+  late Future<List<dynamic>> _leaderboardFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // Gọi API ngay khi màn hình vừa mở lên
+    _leaderboardFuture = UserService.getLeaderboard();
+  }
+
+  // Hàm để vuốt xuống làm mới (Pull-to-refresh)
+  Future<void> _refreshData() async {
+    setState(() {
+      _leaderboardFuture = UserService.getLeaderboard();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,15 +34,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             '🏆 BẢNG XẾP HẠNG DINKMATE',
             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)
         ),
-        backgroundColor: Colors.green, // Tone màu chủ đạo của bạn
+        backgroundColor: Colors.green,
         centerTitle: true,
         elevation: 0,
       ),
       body: Container(
-        color: Colors.grey[100], // Màu nền xám nhạt để làm nổi bật các thẻ Card
+        color: Colors.grey[100],
         child: Column(
           children: [
-            // Khung bo góc tạo điểm nhấn ở dưới AppBar
             Container(
               height: 20,
               decoration: const BoxDecoration(
@@ -49,79 +54,108 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             ),
             const SizedBox(height: 10),
 
-            // Danh sách người chơi dạng cuộn
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.only(bottom: 20),
-                itemCount: _topPlayers.length,
-                itemBuilder: (context, index) {
-                  final player = _topPlayers[index];
+              child: RefreshIndicator(
+                onRefresh: _refreshData,
+                color: Colors.green,
+                child: FutureBuilder<List<dynamic>>(
+                  future: _leaderboardFuture,
+                  builder: (context, snapshot) {
+                    // 1. Trạng thái Đang tải (Loading)
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: Colors.green));
+                    }
 
-                  // Logic tạo huy chương cho Top 3
-                  Widget rankIcon;
-                  if (index == 0) {
-                    rankIcon = const Icon(Icons.workspace_premium, color: Color(0xFFFFD700), size: 36); // Vàng
-                  } else if (index == 1) {
-                    rankIcon = const Icon(Icons.workspace_premium, color: Color(0xFFC0C0C0), size: 36); // Bạc
-                  } else if (index == 2) {
-                    rankIcon = const Icon(Icons.workspace_premium, color: Color(0xFFCD7F32), size: 36); // Đồng
-                  } else {
-                    rankIcon = Text(
-                      "#${index + 1}",
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
-                    );
-                  }
+                    // 2. Trạng thái Lỗi
+                    if (snapshot.hasError) {
+                      return Center(child: Text("Có lỗi xảy ra: ${snapshot.error}"));
+                    }
 
-                  return Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    elevation: index < 3 ? 4 : 1, // Top 3 thẻ sẽ đổ bóng đậm hơn
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      // Hiển thị Hạng (Số hoặc Huy chương)
-                      leading: SizedBox(
-                        width: 40,
-                        child: Center(child: rankIcon),
-                      ),
-                      // Hiển thị Avatar và Tên
-                      title: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundImage: NetworkImage(player['avatar']),
-                            radius: 22,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              player['name'],
-                              style: TextStyle(
-                                  fontWeight: index < 3 ? FontWeight.bold : FontWeight.w600,
-                                  fontSize: 16
+                    // 3. Trạng thái Thành công
+                    final topPlayers = snapshot.data ?? [];
+
+                    if (topPlayers.isEmpty) {
+                      return const Center(child: Text("Chưa có dữ liệu bảng xếp hạng."));
+                    }
+
+                    // 4. Hiển thị danh sách
+                    return ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(), // Đảm bảo luôn cuộn được để Refresh
+                      padding: const EdgeInsets.only(bottom: 20),
+                      itemCount: topPlayers.length,
+                      itemBuilder: (context, index) {
+                        final player = topPlayers[index];
+
+                        // Lấy dữ liệu an toàn từ API
+                        final String name = player['full_name'] ?? 'Người chơi Ẩn danh';
+                        final int elo = player['elo_rating'] ?? 0;
+                        // Nếu user chưa có avatar thì dùng ảnh mặc định
+                        final String avatarUrl = player['avatar_url'] ?? "https://ui-avatars.com/api/?name=${name.replaceAll(' ', '+')}&background=random";
+
+                        Widget rankIcon;
+                        if (index == 0) {
+                          rankIcon = const Icon(Icons.workspace_premium, color: Color(0xFFFFD700), size: 36);
+                        } else if (index == 1) {
+                          rankIcon = const Icon(Icons.workspace_premium, color: Color(0xFFC0C0C0), size: 36);
+                        } else if (index == 2) {
+                          rankIcon = const Icon(Icons.workspace_premium, color: Color(0xFFCD7F32), size: 36);
+                        } else {
+                          rankIcon = Text(
+                            "#${index + 1}",
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
+                          );
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          elevation: index < 3 ? 4 : 1,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: SizedBox(
+                              width: 40,
+                              child: Center(child: rankIcon),
+                            ),
+                            title: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundImage: NetworkImage(avatarUrl),
+                                  radius: 22,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    name,
+                                    style: TextStyle(
+                                        fontWeight: index < 3 ? FontWeight.bold : FontWeight.w600,
+                                        fontSize: 16
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                              overflow: TextOverflow.ellipsis, // Cắt chữ nếu tên quá dài
+                              child: Text(
+                                "$elo ELO",
+                                style: const TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                      // Hiển thị số điểm ELO
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          "${player['elo']} ELO",
-                          style: const TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ),
           ],
