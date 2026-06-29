@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/api/user_service.dart';
 import '../../core/api/auth_service.dart';
 import '../auth/login_screen.dart';
+import '../my_matches/my_matches_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userName;
@@ -92,7 +93,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        _buildMenuItem(context, Icons.history, 'Lịch sử kèo đấu'),
+                        _buildMenuItem(context, Icons.history, 'Trận đấu của tôi'),
                         const Divider(height: 1),
                         _buildMenuItem(context, Icons.workspace_premium, 'Thành tích & Huy hiệu'),
                         const Divider(height: 1),
@@ -154,6 +155,11 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ],
             ),
+          );
+        } else if (title == 'Trận đấu của tôi') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const MyMatchesScreen()),
           );
         } else {
           // Xử lý sự kiện khi bấm vào menu khác
