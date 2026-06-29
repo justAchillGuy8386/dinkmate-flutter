@@ -17,12 +17,13 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final responseData = jsonDecode(response.body);
 
-        // 👉 LƯU VÀO BỘ NHỚ TOÀN CỤC
-        currentUser = data['user'] ?? data;
+        print("LOG LOGIN: $responseData");
 
-        return data;
+        AuthService.currentUser = responseData['data'] ?? responseData['user'] ?? responseData;
+
+        return responseData;
       } else {
         final errorResponse = jsonDecode(response.body);
         throw Exception(errorResponse['error'] ?? 'Đăng nhập thất bại');
