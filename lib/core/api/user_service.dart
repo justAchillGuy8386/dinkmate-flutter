@@ -12,4 +12,21 @@ class UserService {
       throw Exception('Không thể tải thống kê');
     }
   }
+
+  static Future<List<dynamic>> getLeaderboard() async {
+    try {
+      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/users/leaderboard'));
+
+      if (response.statusCode == 200) {
+        final decodedData = jsonDecode(response.body);
+        return decodedData['data']; // Trả về mảng danh sách người chơi
+      } else {
+        print("Lỗi từ server khi lấy leaderboard: ${response.statusCode}");
+        return [];
+      }
+    } catch (e) {
+      print("Lỗi kết nối mạng: $e");
+      return [];
+    }
+  }
 }

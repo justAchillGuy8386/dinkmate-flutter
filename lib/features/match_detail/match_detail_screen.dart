@@ -2,21 +2,29 @@ import 'package:flutter/material.dart';
 import '../../features/check_in/qr_scanner_screen.dart';
 import '../../features/match_detail/submit_score_screen.dart';
 import '../../core/api/check_in_service.dart';
+import '../../core/api/auth_service.dart';
 
 class MatchDetailScreen extends StatelessWidget {
   final String matchId;
+  final String currentUserId;
+  final String opponentId;
   final String opponentName;
-  final int opponentElo;  
+  final int opponentElo;
 
   const MatchDetailScreen({
     super.key,
     required this.matchId,
+    required this.currentUserId,
+    required this.opponentId,
     required this.opponentName,
     required this.opponentElo,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Lấy ELO thật
+    final int myElo = AuthService.currentUser?['elo_rating'] ?? 0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("CHI TIẾT TRẬN ĐẤU", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
@@ -34,12 +42,11 @@ class MatchDetailScreen extends StatelessWidget {
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start, // Giữ các phần tử bám sát lề trên
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Người chơi (Bạn)
-                Expanded(child: _buildPlayerInfo("Bạn", 1166, "https://i.pravatar.cc/150?u=me")),
+                // Truyền myElo thật
+                Expanded(child: _buildPlayerInfo("Bạn", myElo, "https://ui-avatars.com/api/?name=Bạn&background=random")),
 
-                // Icon VS ở giữa
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   child: Column(
@@ -52,8 +59,7 @@ class MatchDetailScreen extends StatelessWidget {
                   ),
                 ),
 
-                // Đối thủ
-                Expanded(child: _buildPlayerInfo(opponentName, opponentElo, "https://i.pravatar.cc/150?u=opp")),
+                Expanded(child: _buildPlayerInfo(opponentName, opponentElo, "https://ui-avatars.com/api/?name=${opponentName.replaceAll(' ', '+')}&background=random")),
               ],
             ),
           ),
@@ -78,9 +84,8 @@ class MatchDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 40),
 
-                // Nút bấm quan trọng nhất: Check-in
                 const Text(
-                  "Vui lòng di chuyển ra sân và quét mã QR để xác nhận sự hiện diện của bạn!",
+                  "Vui lòng di chuyển ra sân và quét mã QR để xác nhận có mặt!",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
                 ),
@@ -91,58 +96,48 @@ class MatchDetailScreen extends StatelessWidget {
                   height: 60,
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                      //  Mở màn hình quét và đợi kết quả
                       final String? scannedQrCode = await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const QrScannerScreen()),
                       );
 
-                      //  Nếu người dùng có quét (không bấm nút Back)
                       if (scannedQrCode != null && context.mounted) {
-
-                        print("Scanned QR Code: `$scannedQrCode`");
-
-                        // Hiển thị vòng xoay Loading để người dùng biết app đang xử lý
                         showDialog(
                           context: context,
                           barrierDismissible: false,
                           builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.green)),
                         );
 
-                        // GỌI API LÊN NEXT.JS
+                        // thay thế hoàn toàn ID cứng bằng Data thật
                         final result = await CheckInService.verifyQrCode(
-                            "id_test2",
-                            "b6449078-b9b8-4f5d-81a0-4d76ce411235", // tín nguyễn
+                            matchId,
+                            currentUserId,
                             scannedQrCode
                         );
 
-                        // Đóng vòng xoay Loading
                         if (context.mounted) Navigator.pop(context);
 
-                        //  Xử lý kết quả trả về từ Server
                         if (result != null && result.startsWith("ERROR:")) {
-                          // Báo lỗi bằng màu đỏ (VD: Sai sân, QR không hợp lệ)
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(result.replaceAll("ERROR: ", "")), backgroundColor: Colors.red),
                           );
                         } else {
-                          // Thành công!
                           if (result == 'In_Progress') {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text("Cả 2 đã Check-in! Trận đấu BẮT ĐẦU 🚀"), backgroundColor: Colors.green),
                             );
+
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => SubmitScoreScreen(
-                                  matchId: "id_test2",
-                                  playerAId: "b6449078-b9b8-4f5d-81a0-4d76ce411235", // ID thật 249629d4-6cd8-4403-8607-17bb70766347
-                                  playerBId: "249629d4-6cd8-4403-8607-17bb70766347", // ID đối thủ
+                                  matchId: matchId,
+                                  playerAId: currentUserId,
+                                  playerBId: opponentId,
                                   opponentName: opponentName,
                                 ),
                               ),
                             );
-                            // Tùy chọn: Chuyển sang màn hình Ghi Điểm (Scoreboard) ở đây
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text("Check-in thành công! Đang chờ đối thủ..."), backgroundColor: Colors.orange),
@@ -169,7 +164,7 @@ class MatchDetailScreen extends StatelessWidget {
 
   Widget _buildPlayerInfo(String name, int elo, String avatarUrl) {
     return SizedBox(
-      width: 110, // Khóa cứng chiều rộng của khung thông tin
+      width: 110,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -179,12 +174,11 @@ class MatchDetailScreen extends StatelessWidget {
             child: CircleAvatar(radius: 42, backgroundImage: NetworkImage(avatarUrl)),
           ),
           const SizedBox(height: 10),
-          // Thẻ Text đã được thiết lập để tự động xuống dòng
           Text(
             name,
-            textAlign: TextAlign.center, // Căn giữa văn bản
-            maxLines: 2, // Cho phép tối đa 2 dòng
-            overflow: TextOverflow.ellipsis, // Nếu vẫn quá dài thì cắt bằng dấu ...
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, height: 1.2),
           ),
           const SizedBox(height: 8),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/api/user_service.dart';
+import '../../core/api/auth_service.dart';
+import '../auth/login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userName;
@@ -90,15 +92,15 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        _buildMenuItem(Icons.history, 'Lịch sử kèo đấu'),
+                        _buildMenuItem(context, Icons.history, 'Lịch sử kèo đấu'),
                         const Divider(height: 1),
-                        _buildMenuItem(Icons.workspace_premium, 'Thành tích & Huy hiệu'),
+                        _buildMenuItem(context, Icons.workspace_premium, 'Thành tích & Huy hiệu'),
                         const Divider(height: 1),
-                        _buildMenuItem(Icons.settings, 'Cài đặt tài khoản'),
+                        _buildMenuItem(context, Icons.settings, 'Cài đặt tài khoản'),
                         const Divider(height: 1),
-                        _buildMenuItem(Icons.help_outline, 'Hỗ trợ & Góp ý'),
+                        _buildMenuItem(context, Icons.help_outline, 'Hỗ trợ & Góp ý'),
                         const Divider(height: 1),
-                        _buildMenuItem(Icons.logout, 'Đăng xuất', isLogout: true),
+                        _buildMenuItem(context, Icons.logout, 'Đăng xuất', isLogout: true),
                       ],
                     ),
                   ),
@@ -122,13 +124,40 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title, {bool isLogout = false}) {
+  Widget _buildMenuItem(BuildContext context, IconData icon, String title, {bool isLogout = false}) {
     return ListTile(
       leading: Icon(icon, color: isLogout ? Colors.red : Colors.green),
       title: Text(title, style: TextStyle(color: isLogout ? Colors.red : Colors.black87)),
       trailing: const Icon(Icons.chevron_right, size: 20),
       onTap: () {
-        // Xử lý sự kiện khi bấm vào menu
+        if (isLogout) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Xác nhận đăng xuất'),
+              content: const Text('Bạn có chắc chắn muốn đăng xuất không?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context), // Đóng dialog
+                  child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    AuthService.currentUser = null;
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  },
+                  child: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            ),
+          );
+        } else {
+          // Xử lý sự kiện khi bấm vào menu khác
+        }
       },
     );
   }
