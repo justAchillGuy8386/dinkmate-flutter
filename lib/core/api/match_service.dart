@@ -119,4 +119,20 @@ class MatchService {
       return null;
     }
   }
+
+  static Future<List<dynamic>> getMyMatches(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/matches/my-matches?userId=$userId'),
+      );
+      if (response.statusCode == 200) {
+        final decodedData = jsonDecode(response.body);
+        return decodedData['data'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      print("Lỗi kéo danh sách trận đấu: $e");
+      return [];
+    }
+  }
 }
