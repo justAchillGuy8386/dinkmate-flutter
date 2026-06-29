@@ -1,5 +1,8 @@
-import 'package:dinkmate_flutter/features/match_detail/match_detail_screen.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../../core/api/api_config.dart';
+import '../../core/api/auth_service.dart';
 
 class RankedArenaScreen extends StatefulWidget {
   const RankedArenaScreen({super.key});
@@ -8,7 +11,6 @@ class RankedArenaScreen extends StatefulWidget {
   State<RankedArenaScreen> createState() => _RankedArenaScreenState();
 }
 
-// Bổ sung SingleTickerProviderStateMixin để chạy hiệu ứng Animation
 class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTickerProviderStateMixin {
   bool _isSearching = false;
   late AnimationController _pulseController;
@@ -16,7 +18,6 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
   @override
   void initState() {
     super.initState();
-    // Khởi tạo bộ đếm nhịp cho sóng Radar (1.5 giây cho 1 vòng sóng)
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -30,63 +31,87 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
   }
 
   void _startSearching() async {
-    setState(() {
-      _isSearching = true;
-    });
-    _pulseController.repeat(); // Bắt đầu phát sóng Radar liên tục
+    // 1. LẤY ID NGƯỜI DÙNG ĐANG ĐĂNG NHẬP
+    final String myUserId = AuthService.currentUser?['id'] ?? "";
+    if (myUserId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Vui lòng đăng nhập lại!"), backgroundColor: Colors.red),
+      );
+      return;
+    }
 
-    // Tạm thời giả lập AI đang tính toán mất 4 giây
-    await Future.delayed(const Duration(seconds: 4));
+    setState(() => _isSearching = true);
+    _pulseController.repeat();
+
+    // 2. GỌI API LÊN NEXT.JS ĐỂ TẠO PHIẾU TÌM TRẬN
+    final bool requestSuccess = await _submitMatchRequest(myUserId);
+
+    // 3. Hiệu ứng Radar quay 3 giây cho mượt mà (UX)
+    await Future.delayed(const Duration(seconds: 3));
 
     if (mounted) {
-      setState(() {
-        _isSearching = false;
-      });
-      _pulseController.stop(); // Tắt sóng Radar
+      setState(() => _isSearching = false);
+      _pulseController.stop();
       _pulseController.reset();
 
-      _showMatchFoundDialog();
+      if (requestSuccess) {
+        // Mở Popup thông báo chạy ngầm
+        _showBackgroundSearchDialog();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Lỗi hệ thống! Không thể tạo yêu cầu."), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
-  void _showMatchFoundDialog() {
+  // Hàm phụ gửi API
+  Future<bool> _submitMatchRequest(String userId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/match-requests'), // Route API Next.js của bạn
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'creator_id': userId,
+          'court_id': "123456789", // Tạm thời hardcode sân
+          'scheduled_time': DateTime.now().toIso8601String(),
+          'is_ranked': true
+        }),
+      );
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Popup thông báo Tìm Ngầm
+  void _showBackgroundSearchDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, // Bắt buộc người dùng phải tương tác
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Column(
           children: [
-            Icon(Icons.check_circle_outline, color: Colors.green, size: 60),
+            Icon(Icons.radar, color: Colors.deepOrange, size: 60),
             SizedBox(height: 10),
-            Text("GHÉP TRẬN THÀNH CÔNG!", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 20), textAlign: TextAlign.center,),
+            Text("ĐANG TÌM KIẾM NGẦM", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange, fontSize: 18), textAlign: TextAlign.center,),
           ],
         ),
         content: const Text(
-          "Hệ thống đã ghép cặp thành công.\nĐối thủ của bạn đang chờ. Hãy di chuyển ra sân để Check-in mã QR!",
+          "Yêu cầu ghép trận của bạn đã được đưa vào hệ thống AI.\n\nBạn có thể thoát màn hình này. Chúng tôi sẽ thông báo ngay khi có đối thủ phù hợp!",
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.deepOrange,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
-              Navigator.pop(context);
-              Navigator.push (
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MatchDetailScreen(
-                    matchId: "id_gia_lap_1",
-                    opponentName: "Tô Tổng Văn Giang Hưng Yên",
-                    opponentElo: 2680,
-                  ),
-                ),
-              );
+              Navigator.pop(context); // Đóng Popup
             },
-            child: const Text("XEM CHI TIẾT KÈO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text("ĐÃ HIỂU", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
       ),
@@ -98,12 +123,11 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, child) {
-        // Tạo độ trễ cho các vòng sóng khác nhau
         double value = (_pulseController.value + delay) % 1.0;
         return Opacity(
           opacity: 1.0 - value,
           child: Transform.scale(
-            scale: 1.0 + (value * 1.5), // Phóng to gấp 1.5 lần
+            scale: 1.0 + (value * 1.5),
             child: Container(
               width: 150,
               height: 150,
@@ -121,6 +145,8 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    final int myElo = AuthService.currentUser?['elo_rating'] ?? 0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('ĐẤU XẾP HẠNG', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
@@ -152,12 +178,10 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Ba vòng sóng Radar với độ trễ khác nhau
                   if (_isSearching) _buildPulseWidget(0.0),
                   if (_isSearching) _buildPulseWidget(0.3),
                   if (_isSearching) _buildPulseWidget(0.6),
 
-                  // Nút bấm trung tâm
                   GestureDetector(
                     onTap: _isSearching ? null : _startSearching,
                     child: AnimatedContainer(
@@ -203,7 +227,7 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
             ),
             const SizedBox(height: 60),
 
-            // Thông tin mô phỏng ELO hiện tại của người chơi
+            // Hiển thị ELO động
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
@@ -211,13 +235,13 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.grey.shade300),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.workspace_premium, color: Colors.amber),
-                  SizedBox(width: 8),
-                  Text("ELO hiện tại của bạn: ", style: TextStyle(color: Colors.grey)),
-                  Text("1166", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepOrange)),
+                  const Icon(Icons.workspace_premium, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  const Text("ELO hiện tại của bạn: ", style: TextStyle(color: Colors.grey)),
+                  Text("$myElo", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepOrange)), // DỮ LIỆU THẬT
                 ],
               ),
             ),
