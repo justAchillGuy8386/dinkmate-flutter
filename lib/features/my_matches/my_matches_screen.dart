@@ -31,7 +31,7 @@ class _MyMatchesScreenState extends State<MyMatchesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Trận Đấu Của Tôi', style: TextStyle(fontWeight: FontWeight.normal, color: Colors.white)),
+        title: const Text('TRẬN ĐẤU CỦA TÔI', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.green,
         centerTitle: true,
         elevation: 0,
@@ -90,6 +90,9 @@ class _MyMatchesScreenState extends State<MyMatchesScreen> {
                   } else if (status == 'In_Progress') {
                     statusColor = Colors.blue;
                     statusText = "Đang thi đấu";
+                  } else if (status == 'Waiting_For_Opponent') {
+                    statusColor = Colors.blueAccent;
+                    statusText = "Chờ đối thủ nộp điểm";
                   } else if (status == 'Completed') {
                     statusColor = Colors.green;
                     statusText = "Đã hoàn thành";
@@ -105,6 +108,7 @@ class _MyMatchesScreenState extends State<MyMatchesScreen> {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(15),
                       onTap: () {
+                        // CHỈ CHUYỂN TRANG NẾU TRẬN ĐẤU CHƯA XONG (Trừ Completed)
                         if (status != 'Completed') {
                           Navigator.push(
                             context,
@@ -115,6 +119,7 @@ class _MyMatchesScreenState extends State<MyMatchesScreen> {
                                 opponentId: oppId,
                                 opponentName: oppName,
                                 opponentElo: oppElo,
+                                initialStatus: status, // 👉 BIẾN QUAN TRỌNG ĐỂ RẼ NHÁNH MÀN HÌNH
                               ),
                             ),
                           ).then((_) => _loadMatches()); // Refresh lại danh sách khi quay về
@@ -147,7 +152,7 @@ class _MyMatchesScreenState extends State<MyMatchesScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text("Đối thủ:", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                      const Text("Gặp đối thủ:", style: TextStyle(color: Colors.grey, fontSize: 12)),
                                       Text(oppName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                       const SizedBox(height: 4),
                                       Row(
