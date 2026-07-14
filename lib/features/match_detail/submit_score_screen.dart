@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../core/api/match_service.dart';
+import 'package:http/http.dart' as http;
+import '../../core/api/api_config.dart';
+import '../match_detail//dispute_screen.dart';
 
 class SubmitScoreScreen extends StatefulWidget {
   final String matchId;
@@ -35,44 +38,113 @@ class _SubmitScoreScreenState extends State<SubmitScoreScreen> {
 
     setState(() => _isLoading = true);
 
-    // Gọi API gửi lên Next.js -> Python AI
-    bool success = await MatchService.submitMatchScore(
-      matchId: widget.matchId,
-      winnerId: _selectedWinnerId!,
-      scoresData: _selectedScore,
-      intensityFeedback: _selectedIntensity,
-    );
+    try {
+      // 1. GỌI TRỰC TIẾP API NEXT.JS TẠI ĐÂY
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/matches/submit-score'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'match_id': widget.matchId,
+          'user_id': widget.playerAId,
+          'winner_id': _selectedWinnerId,
+          'scores_data': _selectedScore,
+          'intensity_feedback': _selectedIntensity,
+        }),
+      );
 
-    setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
 
-    if (success && mounted) {
-      // Hiện thông báo chúc mừng
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Icon(Icons.stars, color: Colors.green, size: 60),
-          content: const Text(
-            "🎉 Đã ghi nhận kết quả!\nĐiểm ELO của bạn và đối thủ đã được cập nhật dựa trên phân tích của AI.",
-            textAlign: TextAlign.center,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                // Quay trở lại màn hình chính (Bảng xếp hạng)
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-              child: const Text("XÁC NHẬN", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-            )
+      if (response.statusCode == 200 && mounted) {
+        final data = jsonDecode(response.body);
+        final String status = data['status']; // 'Waiting', 'Completed', hoặc 'Disputed'
+
+        // 🟢 TRƯỜNG HỢP 1: TRẬN ĐẤU KẾT THÚC ĐẸP
+        if (status == 'Completed') {
+          _showDialogMessage(
+            icon: Icons.stars,
+            iconColor: Colors.green,
+            title: "🎉 Trận đấu hoàn tất!",
+            message: "Điểm số khớp nhau. Điểm ELO của bạn và đối thủ đã được cập nhật dựa trên phân tích của AI.",
+            btnColor: Colors.green,
+          );
+        }
+        // 🟡 TRƯỜNG HỢP 2: BẠN LÀ NGƯỜI NỘP TRƯỚC -> CHỜ ĐỐI THỦ
+        else if (status == 'Waiting') {
+          _showDialogMessage(
+            icon: Icons.access_time_filled,
+            iconColor: Colors.orange,
+            title: "Đã ghi nhận điểm",
+            message: "Hệ thống đang chờ đối thủ của bạn nhập điểm để đối chiếu. Trận đấu sẽ tự động hoàn tất nếu kết quả khớp nhau.",
+            btnColor: Colors.orange,
+          );
+        }
+        // 🔴 TRƯỜNG HỢP 3: LỆCH ĐIỂM -> TRANH CHẤP
+        else if (status == 'Disputed') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Phát hiện sai lệch điểm số! Chuyển sang màn hình khiếu nại."), backgroundColor: Colors.red),
+          );
+          // Đá văng sang trang Dispute
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DisputeScreen(
+                matchId: widget.matchId,
+                currentUserId: widget.playerAId,
+              ),
+            ),
+          );
+        }
+      } else if (mounted) {
+        final errorData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorData['error'] ?? "Có lỗi xảy ra, vui lòng thử lại!"), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Lỗi kết nối máy chủ!"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // Hàm Helper để hiển thị thông báo popup
+  void _showDialogMessage({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String message,
+    required Color btnColor
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Icon(icon, color: iconColor, size: 60),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 10),
+            Text(message, textAlign: TextAlign.center),
           ],
         ),
-      );
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Có lỗi xảy ra, vui lòng thử lại!"), backgroundColor: Colors.red),
-      );
-    }
+        actions: [
+          Center(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: btnColor),
+              onPressed: () {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: const Text("XÁC NHẬN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          )
+        ],
+      ),
+    );
   }
 
   @override
@@ -161,7 +233,7 @@ class _SubmitScoreScreenState extends State<SubmitScoreScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 ),
                 onPressed: _handleSubmit,
-                child: const Text("GỬI KẾT QUẢ & TÍNH ELO", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: const Text("GỬI KẾT QUẢ TỈ SỐ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             )
           ],
