@@ -46,7 +46,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
     try {
       // Gọi API gửi bằng chứng lên Next.js
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/disputes/submit-evidence'),
+        Uri.parse('${ApiConfig.baseUrl}/disputes'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'match_id': widget.matchId,
