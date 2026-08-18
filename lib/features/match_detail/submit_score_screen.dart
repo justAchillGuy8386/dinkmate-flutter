@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../core/api/api_config.dart';
-import '../match_detail//dispute_screen.dart';
+import '../match_detail/dispute_screen.dart';
 
 class SubmitScoreScreen extends StatefulWidget {
   final String matchId;
@@ -58,7 +58,6 @@ class _SubmitScoreScreenState extends State<SubmitScoreScreen> {
         final data = jsonDecode(response.body);
         final String status = data['status']; // 'Waiting', 'Completed', hoặc 'Disputed'
 
-        // 🟢 TRƯỜNG HỢP 1: TRẬN ĐẤU KẾT THÚC ĐẸP
         if (status == 'Completed') {
           _showDialogMessage(
             icon: Icons.stars,
