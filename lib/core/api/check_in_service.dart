@@ -14,7 +14,7 @@ class CheckInService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'match_id': matchId,
-          'player_id': "249629d4-6cd8-4403-8607-17bb70766347", // "249629d4-6cd8-4403-8607-17bb70766347" id player B test
+          'player_id': playerId,
           'scanned_qr_code': qrCode,
         }),
       );

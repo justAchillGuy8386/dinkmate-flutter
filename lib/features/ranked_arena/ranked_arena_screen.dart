@@ -1,8 +1,10 @@
+import 'dart:async'; 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../core/api/api_config.dart';
 import '../../core/api/auth_service.dart';
+import '../match_detail/match_detail_screen.dart';
 
 class RankedArenaScreen extends StatefulWidget {
   const RankedArenaScreen({super.key});
@@ -14,6 +16,7 @@ class RankedArenaScreen extends StatefulWidget {
 class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTickerProviderStateMixin {
   bool _isSearching = false;
   late AnimationController _pulseController;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
@@ -27,11 +30,11 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
   @override
   void dispose() {
     _pulseController.dispose();
+    _pollingTimer?.cancel(); //
     super.dispose();
   }
 
   void _startSearching() async {
-    // 1. LẤY ID NGƯỜI DÙNG ĐANG ĐĂNG NHẬP
     final String myUserId = AuthService.currentUser?['id'] ?? "";
     if (myUserId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -43,21 +46,20 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
     setState(() => _isSearching = true);
     _pulseController.repeat();
 
-    // 2. GỌI API LÊN NEXT.JS ĐỂ TẠO PHIẾU TÌM TRẬN
+    // 1. Tạo Phiếu tìm trận (Tới API hiện tại của bạn)
     final bool requestSuccess = await _submitMatchRequest(myUserId);
 
-    // 3. Hiệu ứng Radar quay 3 giây cho mượt mà (UX)
     await Future.delayed(const Duration(seconds: 3));
 
     if (mounted) {
-      setState(() => _isSearching = false);
-      _pulseController.stop();
-      _pulseController.reset();
-
       if (requestSuccess) {
-        // Mở Popup thông báo chạy ngầm
+        // 2. KÍCH HOẠT ĐỒNG HỒ TỰ ĐỘNG HỎI AI
+        _startPolling(myUserId);
         _showBackgroundSearchDialog();
       } else {
+        setState(() => _isSearching = false);
+        _pulseController.stop();
+        _pulseController.reset();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Lỗi hệ thống! Không thể tạo yêu cầu."), backgroundColor: Colors.red),
         );
@@ -65,15 +67,14 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
     }
   }
 
-  // Hàm phụ gửi API
   Future<bool> _submitMatchRequest(String userId) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/match-requests'), // Route API Next.js của bạn
+        Uri.parse('${ApiConfig.baseUrl}/match-requests'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'creator_id': userId,
-          'court_id': "123456789", // Tạm thời hardcode sân
+          'court_id': "123456789",
           'scheduled_time': DateTime.now().toIso8601String(),
           'is_ranked': true
         }),
@@ -84,10 +85,63 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
     }
   }
 
-  // Popup thông báo Tìm Ngầm
+  // QUÉT LIÊN TỤC 5 GIÂY / LẦN
+  void _startPolling(String userId) {
+    _pollingTimer?.cancel(); // Hủy cái cũ nếu có
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      try {
+        final response = await http.get(
+          Uri.parse('${ApiConfig.baseUrl}/match-requests/check-status?user_id=$userId'),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+
+          if (data['status'] == 'Matched') {
+            timer.cancel(); // Tắt đồng hồ ngay lập tức
+
+            if (mounted) {
+              setState(() {
+                _isSearching = false;
+                _pulseController.stop();
+              });
+
+              // Tắt cái Popup "Đang tìm ngầm" (nếu nó đang mở)
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
+
+              // Rung thông báo và CHUYỂN THẲNG VÀO TRẬN ĐẤU
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("🎉 ĐÃ TÌM THẤY ĐỐI THỦ!"), backgroundColor: Colors.green),
+              );
+
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MatchDetailScreen(
+                    matchId: data['match_id'],
+                    currentUserId: userId,
+                    opponentId: data['opponent_id'],
+                    opponentName: data['opponent_name'],
+                    opponentElo: data['opponent_elo'],
+                    initialStatus: 'Pending',
+                  ),
+                ),
+              );
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint("Lỗi Polling: $e");
+      }
+    });
+  }
+
   void _showBackgroundSearchDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false, // Bắt buộc người dùng phải bấm ĐÃ HIỂU
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Column(
@@ -98,7 +152,7 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
           ],
         ),
         content: const Text(
-          "Yêu cầu ghép trận của bạn đã được đưa vào hệ thống AI.\n\nBạn có thể thoát màn hình này. Chúng tôi sẽ thông báo ngay khi có đối thủ phù hợp!",
+          "Yêu cầu ghép trận của bạn đã được đưa vào hệ thống AI.\n\nBạn có thể làm việc khác. Chúng tôi sẽ chuyển bạn vào sân ngay khi có đối thủ phù hợp!",
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
@@ -109,7 +163,7 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
-              Navigator.pop(context); // Đóng Popup
+              Navigator.pop(context);
             },
             child: const Text("ĐÃ HIỂU", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
@@ -118,7 +172,6 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
     );
   }
 
-  // Hàm vẽ từng vòng sóng Radar
   Widget _buildPulseWidget(double delay) {
     return AnimatedBuilder(
       animation: _pulseController,
@@ -149,7 +202,7 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ĐẤU XẾP HẠNG', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: const Text('Đấu Xếp Hạng', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.deepOrange,
         centerTitle: true,
         elevation: 0,
@@ -171,7 +224,6 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
             ),
             const SizedBox(height: 60),
 
-            // Khu vực chứa nút bấm và hiệu ứng Radar
             SizedBox(
               width: 250,
               height: 250,
@@ -227,7 +279,6 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
             ),
             const SizedBox(height: 60),
 
-            // Hiển thị ELO động
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
@@ -241,7 +292,7 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
                   const Icon(Icons.workspace_premium, color: Colors.amber),
                   const SizedBox(width: 8),
                   const Text("ELO hiện tại của bạn: ", style: TextStyle(color: Colors.grey)),
-                  Text("$myElo", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepOrange)), // DỮ LIỆU THẬT
+                  Text("$myElo", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepOrange)),
                 ],
               ),
             ),

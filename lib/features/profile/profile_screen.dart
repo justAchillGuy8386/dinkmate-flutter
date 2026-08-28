@@ -7,22 +7,23 @@ import '../my_matches/my_matches_screen.dart';
 class ProfileScreen extends StatelessWidget {
   final String userName;
   final int elo; // Đây là ELO cũ từ lúc đăng nhập, ta sẽ dùng nó làm dữ liệu dự phòng (fallback)
-  final String userId = "249629d4-6cd8-4403-8607-17bb70766347";
 
   const ProfileScreen({super.key, required this.userName, required this.elo});
 
   @override
   Widget build(BuildContext context) {
+    final String currentUserId = AuthService.currentUser?['id'] ?? "";
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Hồ Sơ Cá Nhân'),
+        title: const Text('Hồ Sơ Cá Nhân', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: FutureBuilder<Map<String, dynamic>>(
-        future: UserService.getUserStats(userId),
+        future: UserService.getUserStats(currentUserId), // TRUYỀN ID ĐỘNG VÀO ĐÂY
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: Colors.green));
@@ -139,7 +140,7 @@ class ProfileScreen extends StatelessWidget {
               content: const Text('Bạn có chắc chắn muốn đăng xuất không?'),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context), // Đóng dialog
+                  onPressed: () => Navigator.pop(context),
                   child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
                 ),
                 TextButton(
@@ -148,7 +149,7 @@ class ProfileScreen extends StatelessWidget {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      (route) => false,
+                          (route) => false,
                     );
                   },
                   child: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
@@ -162,7 +163,7 @@ class ProfileScreen extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const MyMatchesScreen()),
           );
         } else {
-          // Xử lý sự kiện khi bấm vào menu khác
+          // Xử lý sự kiện khác
         }
       },
     );
