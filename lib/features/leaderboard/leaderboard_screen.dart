@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/api/user_service.dart';
+import '../../core/api/auth_service.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -9,17 +10,14 @@ class LeaderboardScreen extends StatefulWidget {
 }
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
-  // Biến chứa future gọi API
   late Future<List<dynamic>> _leaderboardFuture;
 
   @override
   void initState() {
     super.initState();
-    // Gọi API ngay khi màn hình vừa mở lên
     _leaderboardFuture = UserService.getLeaderboard();
   }
 
-  // Hàm để vuốt xuống làm mới (Pull-to-refresh)
   Future<void> _refreshData() async {
     setState(() {
       _leaderboardFuture = UserService.getLeaderboard();
@@ -28,10 +26,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final String myUserId = AuthService.currentUser?['id'] ?? "";
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-            '🏆 BẢNG XẾP HẠNG DINKMATE',
+            '🏆 Bảng Xếp Hạng DinkMate',
             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)
         ),
         backgroundColor: Colors.green,
@@ -61,36 +61,32 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 child: FutureBuilder<List<dynamic>>(
                   future: _leaderboardFuture,
                   builder: (context, snapshot) {
-                    // 1. Trạng thái Đang tải (Loading)
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator(color: Colors.green));
                     }
 
-                    // 2. Trạng thái Lỗi
                     if (snapshot.hasError) {
                       return Center(child: Text("Có lỗi xảy ra: ${snapshot.error}"));
                     }
 
-                    // 3. Trạng thái Thành công
                     final topPlayers = snapshot.data ?? [];
 
                     if (topPlayers.isEmpty) {
                       return const Center(child: Text("Chưa có dữ liệu bảng xếp hạng."));
                     }
 
-                    // 4. Hiển thị danh sách
                     return ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(), // Đảm bảo luôn cuộn được để Refresh
+                      physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.only(bottom: 20),
                       itemCount: topPlayers.length,
                       itemBuilder: (context, index) {
                         final player = topPlayers[index];
 
-                        // Lấy dữ liệu an toàn từ API
                         final String name = player['full_name'] ?? 'Người chơi Ẩn danh';
                         final int elo = player['elo_rating'] ?? 0;
-                        // Nếu user chưa có avatar thì dùng ảnh mặc định
                         final String avatarUrl = player['avatar_url'] ?? "https://ui-avatars.com/api/?name=${name.replaceAll(' ', '+')}&background=random";
+
+                        final bool isMe = player['id'] == myUserId;
 
                         Widget rankIcon;
                         if (index == 0) {
@@ -107,9 +103,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                         }
 
                         return Card(
+                          color: isMe ? Colors.orange.shade50 : Colors.white, // TÔ MÀU NẾU LÀ MÌNH
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           elevation: index < 3 ? 4 : 1,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            side: isMe ? const BorderSide(color: Colors.orange, width: 1.5) : BorderSide.none, // Viền nhấn mạnh
+                          ),
                           child: ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             leading: SizedBox(
@@ -125,9 +125,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    name,
+                                    name + (isMe ? " (Bạn)" : ""),
                                     style: TextStyle(
-                                        fontWeight: index < 3 ? FontWeight.bold : FontWeight.w600,
+                                        fontWeight: index < 3 || isMe ? FontWeight.bold : FontWeight.w600,
                                         fontSize: 16
                                     ),
                                     overflow: TextOverflow.ellipsis,
