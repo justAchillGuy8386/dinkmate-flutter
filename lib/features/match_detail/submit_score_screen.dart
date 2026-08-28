@@ -204,7 +204,7 @@ class _SubmitScoreScreenState extends State<SubmitScoreScreen> {
             ),
             const SizedBox(height: 30),
 
-            // 3. Chọn độ kịch tính (Intensity) cho AI ngửi dữ liệu
+            // 3. Chọn độ kịch tính (Intensity) cho AI
             const Text("3. Độ khốc liệt của trận đấu?", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Row(
