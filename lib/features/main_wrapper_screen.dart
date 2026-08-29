@@ -8,19 +8,28 @@ class MainWrapper extends StatefulWidget {
   final String userName;
   final int elo;
 
-  const MainWrapper({super.key, required this.userName, required this.elo});
+  final int initialIndex;
+
+  const MainWrapper({
+    super.key,
+    required this.userName,
+    required this.elo,
+    this.initialIndex = 2,
+  });
 
   @override
   State<MainWrapper> createState() => _MainWrapperState();
 }
 
 class _MainWrapperState extends State<MainWrapper> {
-  // Đặt mặc định là 0 để khi vừa đăng nhập xong sẽ nhảy ngay vào Tab Bảng Xếp Hạng
-  int _selectedIndex = 0;
+  late int _selectedIndex;
 
   @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex;
+  }
   Widget build(BuildContext context) {
-    // Danh sách các màn hình ứng với từng tab (Thứ tự phải khớp với BottomNavigationBarItem ở dưới)
     final List<Widget> screens = [
       const LeaderboardScreen(), // Tab 0 bảng xếp hạng
       MatchFeedScreen(userName: widget.userName, elo: widget.elo), // Tab 1: Kèo Giao lưu
