@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:dinkmate_flutter/core/api/api_config.dart';
+import '../../core/api/api_config.dart';
+import '../../core/theme/app_theme.dart';
 
 class DisputeScreen extends StatefulWidget {
   final String matchId;
@@ -20,9 +21,8 @@ class DisputeScreen extends StatefulWidget {
 class _DisputeScreenState extends State<DisputeScreen> {
   final TextEditingController _reasonController = TextEditingController();
   bool _isSubmitting = false;
-  String? _fakeUploadedImageUrl; // giả lập link ảnh
+  String? _fakeUploadedImageUrl;
 
-  // Hàm giả lập tải ảnh (Thực tế sẽ dùng thư viện image_picker)
   void _pickImage() async {
     setState(() {
       _fakeUploadedImageUrl = "https://example.com/bang-diem-fake.jpg";
@@ -36,7 +36,7 @@ class _DisputeScreenState extends State<DisputeScreen> {
     final reason = _reasonController.text.trim();
     if (reason.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Vui lòng nhập lý do khiếu nại!"), backgroundColor: Colors.red),
+        const SnackBar(content: Text("Vui lòng nhập lý do khiếu nại!"), backgroundColor: Colors.redAccent),
       );
       return;
     }
@@ -44,7 +44,6 @@ class _DisputeScreenState extends State<DisputeScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Gọi API gửi bằng chứng lên Next.js
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/disputes'),
         headers: {'Content-Type': 'application/json'},
@@ -63,14 +62,14 @@ class _DisputeScreenState extends State<DisputeScreen> {
         } else {
           final errorData = jsonDecode(response.body);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorData['error'] ?? "Lỗi hệ thống"), backgroundColor: Colors.red),
+            SnackBar(content: Text(errorData['error'] ?? "Lỗi hệ thống"), backgroundColor: Colors.redAccent),
           );
         }
       }
     } catch (e) {
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Lỗi kết nối máy chủ!"), backgroundColor: Colors.red),
+        const SnackBar(content: Text("Lỗi kết nối máy chủ!"), backgroundColor: Colors.redAccent),
       );
     }
   }
@@ -80,21 +79,25 @@ class _DisputeScreenState extends State<DisputeScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Icon(Icons.gavel, color: Colors.orange, size: 60),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Icon(Icons.gavel, color: AppTheme.orange, size: 60),
         content: const Text(
           "Đã gửi khiếu nại thành công!\n\nAdmin sẽ kiểm tra bằng chứng và cập nhật ELO cho người chiến thắng. Bạn có thể rời khỏi màn hình này.",
           textAlign: TextAlign.center,
+          style: TextStyle(color: AppTheme.darkSlate, height: 1.4),
         ),
         actions: [
           Center(
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.orange,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              ),
               onPressed: () {
-                // Đẩy người dùng về thẳng trang chủ (MainWrapper)
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
-              child: const Text("QUAY VỀ TRANG CHỦ", style: TextStyle(color: Colors.white)),
+              child: const Text("QUAY VỀ TRANG CHỦ", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           )
         ],
@@ -105,53 +108,57 @@ class _DisputeScreenState extends State<DisputeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text("KHIẾU NẠI KẾT QUẢ", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: const Text("KHIẾU NẠI KẾT QUẢ"),
         backgroundColor: Colors.redAccent,
-        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Warning Box
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: Colors.red.shade200),
+                color: Colors.red.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
-                  SizedBox(width: 10),
+                  Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 32),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       "Hệ thống phát hiện sai lệch điểm số. Vui lòng cung cấp bằng chứng để Admin phân xử. Người khai man sẽ bị trừ Trust Score!",
-                      style: TextStyle(color: Colors.red, fontSize: 13),
+                      style: TextStyle(color: Colors.redAccent, fontSize: 13, height: 1.3),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            const Text("1. Mô tả chi tiết:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text("1. Mô tả chi tiết lý do:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.darkSlate)),
             const SizedBox(height: 10),
             TextField(
               controller: _reasonController,
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: "Ví dụ: Tôi thắng 11-9 nhưng đối thủ cố tình nhập ngược lại...",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppTheme.cardBorder)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppTheme.cardBorder)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.redAccent, width: 2)),
                 filled: true,
                 fillColor: Colors.white,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            const Text("2. Ảnh chụp bảng điểm (Bắt buộc):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text("2. Ảnh chụp bảng điểm (Bắt buộc):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.darkSlate)),
             const SizedBox(height: 10),
             GestureDetector(
               onTap: _pickImage,
@@ -159,21 +166,22 @@ class _DisputeScreenState extends State<DisputeScreen> {
                 height: 150,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.grey.shade400, style: BorderStyle.solid),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.cardBorder),
+                  boxShadow: AppTheme.cardShadow,
                 ),
                 child: _fakeUploadedImageUrl == null
                     ? const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.camera_alt, size: 40, color: Colors.grey),
+                    Icon(Icons.camera_alt_outlined, size: 44, color: AppTheme.primary),
                     SizedBox(height: 10),
-                    Text("Bấm để tải ảnh lên", style: TextStyle(color: Colors.grey)),
+                    Text("Bấm để tải ảnh bằng chứng lên", style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
                   ],
                 )
                     : ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(16),
                   child: Image.network("https://placehold.co/600x400/png?text=Bang+Diem", fit: BoxFit.cover),
                 ),
               ),
@@ -182,15 +190,19 @@ class _DisputeScreenState extends State<DisputeScreen> {
 
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 52,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.redAccent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 onPressed: _isSubmitting ? null : _submitEvidence,
                 child: _isSubmitting
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                )
                     : const Text("GỬI BẰNG CHỨNG", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             ),
