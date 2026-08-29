@@ -4,6 +4,7 @@ import '../../features/match_detail/submit_score_screen.dart';
 import 'dispute_screen.dart';
 import '../../core/api/check_in_service.dart';
 import '../../core/api/auth_service.dart';
+import '../main_wrapper_screen.dart';
 
 class MatchDetailScreen extends StatelessWidget {
   final String matchId;
@@ -31,10 +32,31 @@ class MatchDetailScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("CHI TIẾT TRẬN ĐẤU", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: const Text("Chi Tiết Trận Đấu", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: initialStatus == 'Disputed' ? Colors.red : Colors.green,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              final String myName = AuthService.currentUser?['full_name'] ?? 'Người chơi';
+              final int myElo = AuthService.currentUser?['elo_rating'] ?? 0;
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MainWrapper(
+                    userName: myName,
+                    elo: myElo,
+                  ),
+                ),
+              );
+            }
+          },
+        ),
       ),
+
       body: Column(
         children: [
           // Phần 1: Màn hình đối đầu (VS)
