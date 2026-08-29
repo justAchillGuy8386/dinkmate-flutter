@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../../core/api/match_service.dart';
+import '../../core/api/api_config.dart';
+import '../../core/api/auth_service.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/models.dart';
-import '../check_in/qr_scanner_screen.dart';
 
 class MatchFeedScreen extends StatefulWidget {
   final String userName;
@@ -14,141 +18,488 @@ class MatchFeedScreen extends StatefulWidget {
 }
 
 class _MatchFeedScreenState extends State<MatchFeedScreen> {
-  // Biến lưu trữ luồng dữ liệu
-  late Future<List<MatchRequest>> _matchesFuture;
+  List<MatchRequest> _matches = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadMatches(); // Tải dữ liệu ngay khi vừa mở màn hình
+    _loadMatches();
   }
 
-  void _loadMatches() {
-    _matchesFuture = MatchService.getAvailableMatches();
-  }
-
-  // vuốt xuống để refresh
-  Future<void> _handleRefresh() async {
+  Future<void> _loadMatches() async {
     setState(() {
-      _loadMatches(); // Gọi lại API để lấy dữ liệu mới
+      _isLoading = true;
+      _errorMessage = null;
     });
-    // Chờ API chạy xong để tắt vòng xoay loading của RefreshIndicator
-    await _matchesFuture;
+
+    try {
+      final data = await MatchService.getAvailableMatches();
+      setState(() {
+        _matches = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    await _loadMatches();
+  }
+
+  Future<void> _submitCasualMatch(DateTime scheduledTime) async {
+    final String myUserId = AuthService.currentUser?['id'] ?? "";
+    if (myUserId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Lỗi: Chưa đăng nhập!"), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đang đăng kèo lên Bảng tin...')),
+      );
+
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/match-requests'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'creator_id': myUserId,
+          'court_id': "123456789",
+          'scheduled_time': scheduledTime.toIso8601String(),
+          'is_ranked': false
+        }),
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đăng kèo thành công!'), backgroundColor: AppTheme.primary),
+          );
+          _handleRefresh();
+        }
+      } else {
+        if (mounted) {
+          final err = jsonDecode(response.body);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(err['error'] ?? 'Lỗi tạo kèo'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Không thể kết nối đến máy chủ"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showCreateMatchBottomSheet() {
+    DateTime selectedDate = DateTime.now();
+    TimeOfDay selectedTime = TimeOfDay.now();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24, right: 24, top: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  const Center(
+                    child: Text(
+                      'Tạo Kèo Giao Lưu',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.darkSlate,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: AppTheme.cardBorder),
+                    ),
+                    leading: const Icon(Icons.calendar_today_outlined, color: AppTheme.primary),
+                    title: const Text("Ngày thi đấu", style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                    subtitle: Text(
+                      "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.darkSlate),
+                    ),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 30)),
+                        builder: (context, child) => Theme(
+                          data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppTheme.primary)),
+                          child: child!,
+                        ),
+                      );
+                      if (date != null) setModalState(() => selectedDate = date);
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: AppTheme.cardBorder),
+                    ),
+                    leading: const Icon(Icons.access_time_outlined, color: AppTheme.primary),
+                    title: const Text("Giờ bắt đầu", style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                    subtitle: Text(
+                      selectedTime.format(context),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.darkSlate),
+                    ),
+                    onTap: () async {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: selectedTime,
+                        builder: (context, child) => Theme(
+                          data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: AppTheme.primary)),
+                          child: child!,
+                        ),
+                      );
+                      if (time != null) setModalState(() => selectedTime = time);
+                    },
+                  ),
+                  const SizedBox(height: 28),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppTheme.glowShadow(AppTheme.primary),
+                      ),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: () {
+                          final scheduledTime = DateTime(
+                            selectedDate.year, selectedDate.month, selectedDate.day,
+                            selectedTime.hour, selectedTime.minute,
+                          );
+
+                          Navigator.pop(context);
+                          _submitCasualMatch(scheduledTime);
+                        },
+                        child: const Text(
+                          'ĐĂNG KÈO LÊN BẢNG TIN',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Kèo Đấu Đang Chờ', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
+        title: const Text('Kèo Đấu Đang Chờ'),
       ),
-      body: FutureBuilder<List<MatchRequest>>(
-        future: _matchesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Lỗi: ${snapshot.error}'));
-          }
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCreateMatchBottomSheet,
+        backgroundColor: AppTheme.primary,
+        elevation: 4,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text("Tạo Kèo", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+      body: _buildBody(),
+    );
+  }
 
-          final matches = snapshot.data ?? [];
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
+    }
 
-          // XỬ LÝ KHI DANH SÁCH RỖNG (Vẫn bọc RefreshIndicator để vuốt được)
-          if (matches.isEmpty) {
-            return RefreshIndicator(
-              onRefresh: _handleRefresh,
-              color: Colors.green,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(), // Ép Flutter cho phép vuốt dù danh sách trống
+    if (_errorMessage != null) {
+      return Center(child: Text('Lỗi: $_errorMessage', style: const TextStyle(color: Colors.redAccent)));
+    }
+
+    if (_matches.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _handleRefresh,
+        color: AppTheme.primary,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+            Center(
+              child: Column(
                 children: [
-                  SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-                  const Center(
-                    child: Text(
-                      'Hiện chưa có kèo đấu nào.\nVuốt xuống để làm mới!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.sports_tennis, size: 64, color: AppTheme.primary),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Chưa có kèo đấu nào đang chờ',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.darkSlate),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Hãy trở thành người đầu tiên đăng kèo giao lưu nhé!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      color: AppTheme.primary,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 85),
+        itemCount: _matches.length,
+        itemBuilder: (context, index) {
+          final match = _matches[index];
+          final String myUserId = AuthService.currentUser?['id'] ?? "";
+          final bool isMyMatch = match.creatorName == widget.userName;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isMyMatch ? AppTheme.orange : AppTheme.cardBorder,
+                width: isMyMatch ? 1.5 : 1,
+              ),
+              boxShadow: AppTheme.cardShadow,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Row: Avatar + Creator Info + ELO Badge
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: AppTheme.primary.withOpacity(0.12),
+                        radius: 24,
+                        child: const Icon(Icons.person, color: AppTheme.primary, size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              match.creatorName + (isMyMatch ? " (Bạn)" : ""),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                                color: AppTheme.darkSlate,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(Icons.workspace_premium, size: 14, color: Color(0xFFF59E0B)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${match.creatorElo} ELO",
+                                  style: const TextStyle(
+                                    color: Color(0xFFF59E0B),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isMyMatch)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            "Kèo của bạn",
+                            style: TextStyle(color: AppTheme.orange, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+
+                  // Middle Row: Court & Time Details
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF64748B)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          match.courtName,
+                          style: const TextStyle(color: AppTheme.darkSlate, fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.schedule, size: 18, color: AppTheme.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Bắt đầu: ${match.startTime.hour}:${match.startTime.minute.toString().padLeft(2, '0')}',
+                        style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Bottom Action Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: isMyMatch
+                        ? Center(
+                      child: Text(
+                        "Đang chờ người chơi khác nhận kèo...",
+                        style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic, fontSize: 13),
+                      ),
+                    )
+                        : Container(
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.handshake_outlined, size: 20, color: Colors.white),
+                        label: const Text('NHẬN KÈO NGAY', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              title: const Text('Xác nhận nhận kèo', style: TextStyle(fontWeight: FontWeight.bold)),
+                              content: Text('Bạn có chắc muốn giao lưu trận đấu với ${match.creatorName} không?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                  onPressed: () async {
+                                    Navigator.pop(context);
+
+                                    setState(() {
+                                      _matches.removeAt(index);
+                                    });
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Đang xử lý nhận kèo...')),
+                                    );
+
+                                    final success = await MatchService.acceptMatch(match.id, myUserId);
+
+                                    if (context.mounted) {
+                                      if (success) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Nhận kèo thành công! Hãy vào "Trận của tôi" để theo dõi.'),
+                                            backgroundColor: AppTheme.primary,
+                                          ),
+                                        );
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Không thể nhận kèo. Kèo đã bị hủy hoặc có người khác nhận!'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        _loadMatches();
+                                      }
+                                    }
+                                  },
+                                  child: const Text('Đồng ý'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ],
               ),
-            );
-          }
-
-          // bọc danh sách bằng resfresh bằng refreshindicator
-          return RefreshIndicator(
-            onRefresh: _handleRefresh,
-            color: Colors.green,
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              itemCount: matches.length,
-              itemBuilder: (context, index) {
-                final match = matches[index];
-                return Card(
-                  elevation: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.green.shade100,
-                      child: const Icon(Icons.person, color: Colors.green),
-                    ),
-                    title: Text(match.creatorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('ELO: ${match.creatorElo} • ${match.courtName}'),
-                        const SizedBox(height: 4),
-                        Text('Bắt đầu: ${match.startTime.hour}:${match.startTime.minute.toString().padLeft(2, '0')}', style: const TextStyle(color: Colors.blue)),
-                      ],
-                    ),
-                    trailing: ElevatedButton.icon(
-                      icon: const Icon(Icons.qr_code_scanner, size: 18),
-                      label: const Text('Check-in'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: () async {
-                        final qrResult = await Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const QrScannerScreen()),
-                        );
-                        if (qrResult != null) {
-                          try {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Đang xác thực mã QR...')),
-                            );
-                            await MatchService.checkIn(
-                                match.id,
-                                "249629d4-6cd8-4403-8607-17bb70766347",
-                                qrResult.toString()
-                            );
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Check-in thành công! Chúc bạn chơi vui vẻ.'), backgroundColor: Colors.green),
-                              );
-                              // Check-in xong tự động tải lại trang để mất cái kèo đó đi
-                              _handleRefresh();
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-                              );
-                            }
-                          }
-                        }
-                      },
-                    ),
-                  ),
-                );
-              },
             ),
           );
         },

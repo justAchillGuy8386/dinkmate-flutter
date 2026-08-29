@@ -1,9 +1,10 @@
-import 'dart:async'; 
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../core/api/api_config.dart';
 import '../../core/api/auth_service.dart';
+import '../../core/theme/app_theme.dart';
 import '../match_detail/match_detail_screen.dart';
 
 class RankedArenaScreen extends StatefulWidget {
@@ -23,14 +24,14 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1600),
     );
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
-    _pollingTimer?.cancel(); //
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
@@ -46,14 +47,12 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
     setState(() => _isSearching = true);
     _pulseController.repeat();
 
-    // 1. Tạo Phiếu tìm trận (Tới API hiện tại của bạn)
     final bool requestSuccess = await _submitMatchRequest(myUserId);
 
     await Future.delayed(const Duration(seconds: 3));
 
     if (mounted) {
       if (requestSuccess) {
-        // 2. KÍCH HOẠT ĐỒNG HỒ TỰ ĐỘNG HỎI AI
         _startPolling(myUserId);
         _showBackgroundSearchDialog();
       } else {
@@ -85,9 +84,8 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
     }
   }
 
-  // QUÉT LIÊN TỤC 5 GIÂY / LẦN
   void _startPolling(String userId) {
-    _pollingTimer?.cancel(); // Hủy cái cũ nếu có
+    _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       try {
         final response = await http.get(
@@ -98,7 +96,7 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
           final data = jsonDecode(response.body);
 
           if (data['status'] == 'Matched') {
-            timer.cancel(); // Tắt đồng hồ ngay lập tức
+            timer.cancel();
 
             if (mounted) {
               setState(() {
@@ -106,14 +104,12 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
                 _pulseController.stop();
               });
 
-              // Tắt cái Popup "Đang tìm ngầm" (nếu nó đang mở)
               if (Navigator.canPop(context)) {
                 Navigator.pop(context);
               }
 
-              // Rung thông báo và CHUYỂN THẲNG VÀO TRẬN ĐẤU
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("🎉 ĐÃ TÌM THẤY ĐỐI THỦ!"), backgroundColor: Colors.green),
+                const SnackBar(content: Text("🎉 ĐÃ TÌM THẤY ĐỐI THỦ!"), backgroundColor: AppTheme.primary),
               );
 
               Navigator.pushReplacement(
@@ -141,26 +137,32 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
   void _showBackgroundSearchDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, // Bắt buộc người dùng phải bấm ĐÃ HIỂU
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Column(
           children: [
-            Icon(Icons.radar, color: Colors.deepOrange, size: 60),
-            SizedBox(height: 10),
-            Text("ĐANG TÌM KIẾM NGẦM", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange, fontSize: 18), textAlign: TextAlign.center,),
+            Icon(Icons.radar, color: AppTheme.orange, size: 64),
+            SizedBox(height: 12),
+            Text(
+              "ĐANG TÌM KIẾM NGẦM",
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.orange, fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
         content: const Text(
-          "Yêu cầu ghép trận của bạn đã được đưa vào hệ thống AI.\n\nBạn có thể làm việc khác. Chúng tôi sẽ chuyển bạn vào sân ngay khi có đối thủ phù hợp!",
+          "Yêu cầu ghép trận của bạn đã được đưa vào hệ thống AI.\n\nBạn có thể tự do xem các màn hình khác. Hệ thống sẽ chuyển bạn sang sân đấu ngay khi tìm thấy đối thủ ngang tầm!",
           textAlign: TextAlign.center,
+          style: TextStyle(color: AppTheme.darkSlate, height: 1.4),
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepOrange,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              backgroundColor: AppTheme.orange,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             ),
             onPressed: () {
               Navigator.pop(context);
@@ -180,14 +182,14 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
         return Opacity(
           opacity: 1.0 - value,
           child: Transform.scale(
-            scale: 1.0 + (value * 1.5),
+            scale: 1.0 + (value * 1.6),
             child: Container(
-              width: 150,
-              height: 150,
+              width: 170,
+              height: 170,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.green.withOpacity(0.5), width: 2),
-                color: Colors.green.withOpacity(0.1),
+                border: Border.all(color: AppTheme.orange.withOpacity(0.6), width: 2),
+                color: AppTheme.orange.withOpacity(0.12),
               ),
             ),
           ),
@@ -201,102 +203,152 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
     final int myElo = AuthService.currentUser?['elo_rating'] ?? 0;
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Đấu Xếp Hạng', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: Colors.deepOrange,
-        centerTitle: true,
-        elevation: 0,
+        title: const Text('Đấu Xếp Hạng'),
+        backgroundColor: AppTheme.orange,
       ),
-      body: Container(
-        width: double.infinity,
-        color: Colors.grey[100],
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "Hệ thống Matchmaking AI",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              "Tự động tìm kiếm đối thủ ngang trình độ với bạn",
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-            const SizedBox(height: 60),
-
-            SizedBox(
-              width: 250,
-              height: 250,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (_isSearching) _buildPulseWidget(0.0),
-                  if (_isSearching) _buildPulseWidget(0.3),
-                  if (_isSearching) _buildPulseWidget(0.6),
-
-                  GestureDetector(
-                    onTap: _isSearching ? null : _startSearching,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: _isSearching ? 130 : 160,
-                      height: _isSearching ? 130 : 160,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _isSearching ? Colors.grey[400] : Colors.deepOrange,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.green.withOpacity(0.4),
-                            blurRadius: _isSearching ? 0 : 20,
-                            spreadRadius: _isSearching ? 0 : 5,
-                          ),
-                        ],
+      body: SafeArea(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Header Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome, size: 16, color: AppTheme.orange),
+                    SizedBox(width: 6),
+                    Text(
+                      "AI MATCHMAKING ENGINE",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.orange,
+                        letterSpacing: 0.8,
                       ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _isSearching ? Icons.radar : Icons.sports_tennis,
-                              color: Colors.white,
-                              size: _isSearching ? 40 : 50,
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              _isSearching ? "ĐANG TÌM..." : "TÌM TRẬN",
-                              style: const TextStyle(
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              const Text(
+                "Đấu Trường Xếp Hạng",
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppTheme.darkSlate),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Hệ thống AI tự động tìm kiếm đối thủ có điểm ELO & trình độ tương đồng nhất với bạn",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 50),
+
+              // Pulsing Radar Stack
+              SizedBox(
+                width: 260,
+                height: 260,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (_isSearching) _buildPulseWidget(0.0),
+                    if (_isSearching) _buildPulseWidget(0.33),
+                    if (_isSearching) _buildPulseWidget(0.66),
+
+                    GestureDetector(
+                      onTap: _isSearching ? null : _startSearching,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: _isSearching ? 140 : 170,
+                        height: _isSearching ? 140 : 170,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: _isSearching
+                              ? null
+                              : AppTheme.rankedGradient,
+                          color: _isSearching ? Colors.grey[400] : null,
+                          boxShadow: _isSearching
+                              ? []
+                              : AppTheme.glowShadow(AppTheme.orange),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                _isSearching ? Icons.radar : Icons.local_fire_department,
                                 color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                size: _isSearching ? 44 : 56,
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 6),
+                              Text(
+                                _isSearching ? "ĐANG TÌM..." : "TÌM TRẬN",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 17,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 60),
+              const SizedBox(height: 50),
 
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade300),
+              // Current ELO Card
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppTheme.cardBorder),
+                  boxShadow: AppTheme.cardShadow,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.workspace_premium, color: Color(0xFFF59E0B), size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("ELO hiện tại", style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                        Text(
+                          "$myElo ELO",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: AppTheme.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.workspace_premium, color: Colors.amber),
-                  const SizedBox(width: 8),
-                  const Text("ELO hiện tại của bạn: ", style: TextStyle(color: Colors.grey)),
-                  Text("$myElo", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepOrange)),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

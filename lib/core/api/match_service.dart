@@ -135,4 +135,22 @@ class MatchService {
       return [];
     }
   }
+
+  static Future<bool> acceptMatch(String requestId, String acceptorId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/matches/accept'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'request_id': requestId,
+          'acceptor_id': acceptorId,
+        }),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Lỗi khi nhận kèo: $e");
+      return false;
+    }
+  }
 }

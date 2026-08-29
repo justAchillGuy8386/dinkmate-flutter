@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../core/api/user_service.dart';
 import '../../core/api/auth_service.dart';
+import '../../core/theme/app_theme.dart';
 import '../auth/login_screen.dart';
 import '../my_matches/my_matches_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userName;
-  final int elo; // Đây là ELO cũ từ lúc đăng nhập, ta sẽ dùng nó làm dữ liệu dự phòng (fallback)
+  final int elo;
 
   const ProfileScreen({super.key, required this.userName, required this.elo});
 
@@ -15,21 +16,17 @@ class ProfileScreen extends StatelessWidget {
     final String currentUserId = AuthService.currentUser?['id'] ?? "";
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Hồ Sơ Cá Nhân', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        title: const Text('Hồ Sơ Cá Nhân'),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
-        future: UserService.getUserStats(currentUserId), // TRUYỀN ID ĐỘNG VÀO ĐÂY
+        future: UserService.getUserStats(currentUserId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Colors.green));
+            return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
           }
 
-          // Trích xuất dữ liệu mới, nếu lỗi thì dùng tạm dữ liệu cũ
           final hasData = snapshot.hasData && !snapshot.hasError;
           final currentElo = hasData ? snapshot.data!['elo'] : elo;
           final totalMatches = hasData ? snapshot.data!['total_matches'].toString() : '0';
@@ -37,24 +34,40 @@ class ProfileScreen extends StatelessWidget {
           final winRate = hasData ? '${snapshot.data!['win_rate']}%' : '0%';
 
           return SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 35),
             child: Column(
               children: [
-                // 1. Header Section
+                // 1. Header Banner
                 Container(
-                  color: Colors.green,
                   width: double.infinity,
-                  padding: const EdgeInsets.only(bottom: 30),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
+                  decoration: const BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+                  ),
                   child: Column(
                     children: [
-                      const CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.person, size: 60, color: Colors.green),
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        child: const CircleAvatar(
+                          radius: 46,
+                          backgroundColor: Colors.white,
+                          child: Icon(Icons.person, size: 56, color: AppTheme.primary),
+                        ),
                       ),
-                      const SizedBox(height: 15),
+                      const SizedBox(height: 14),
                       Text(
                         userName,
-                        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -62,46 +75,57 @@ class ProfileScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withOpacity(0.3)),
                         ),
                         child: Text(
                           'ELO: $currentElo',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 20),
 
-                // 2. Stats Section
+                // 2. Stats Section Grid
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      _buildStatItem('Trận đấu', totalMatches),
-                      _buildStatItem('Thắng', wins),
-                      _buildStatItem('Tỉ lệ', winRate),
+                      _buildStatCard('Trận đấu', totalMatches, Icons.sports_tennis, AppTheme.primary),
+                      const SizedBox(width: 12),
+                      _buildStatCard('Chiến thắng', wins, Icons.emoji_events, const Color(0xFFF59E0B)),
+                      const SizedBox(width: 12),
+                      _buildStatCard('Tỉ lệ thắng', winRate, Icons.pie_chart, AppTheme.orange),
                     ],
                   ),
                 ),
+                const SizedBox(height: 24),
 
-                // 3. Menu Options
+                // 3. Menu Options Container
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.cardBorder),
+                      boxShadow: AppTheme.cardShadow,
                     ),
                     child: Column(
                       children: [
                         _buildMenuItem(context, Icons.history, 'Trận đấu của tôi'),
-                        const Divider(height: 1),
-                        _buildMenuItem(context, Icons.workspace_premium, 'Thành tích & Huy hiệu'),
-                        const Divider(height: 1),
-                        _buildMenuItem(context, Icons.settings, 'Cài đặt tài khoản'),
-                        const Divider(height: 1),
+                        const Divider(height: 1, indent: 56, endIndent: 16, color: AppTheme.cardBorder),
+                        _buildMenuItem(context, Icons.workspace_premium_outlined, 'Thành tích & Huy hiệu'),
+                        const Divider(height: 1, indent: 56, endIndent: 16, color: AppTheme.cardBorder),
+                        _buildMenuItem(context, Icons.settings_outlined, 'Cài đặt tài khoản'),
+                        const Divider(height: 1, indent: 56, endIndent: 16, color: AppTheme.cardBorder),
                         _buildMenuItem(context, Icons.help_outline, 'Hỗ trợ & Góp ý'),
-                        const Divider(height: 1),
+                        const Divider(height: 1, indent: 56, endIndent: 16, color: AppTheme.cardBorder),
                         _buildMenuItem(context, Icons.logout, 'Đăng xuất', isLogout: true),
                       ],
                     ),
@@ -115,28 +139,67 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(String label, String value) {
+  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Expanded(
-      child: Column(
-        children: [
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
-          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-        ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppTheme.cardBorder),
+          boxShadow: AppTheme.cardShadow,
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.darkSlate,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildMenuItem(BuildContext context, IconData icon, String title, {bool isLogout = false}) {
+    final Color iconColor = isLogout ? Colors.redAccent : AppTheme.primary;
     return ListTile(
-      leading: Icon(icon, color: isLogout ? Colors.red : Colors.green),
-      title: Text(title, style: TextStyle(color: isLogout ? Colors.red : Colors.black87)),
-      trailing: const Icon(Icons.chevron_right, size: 20),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: iconColor, size: 20),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isLogout ? Colors.redAccent : AppTheme.darkSlate,
+          fontWeight: isLogout ? FontWeight.bold : FontWeight.w600,
+          fontSize: 15,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right, size: 20, color: Color(0xFF94A3B8)),
       onTap: () {
         if (isLogout) {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Xác nhận đăng xuất'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Xác nhận đăng xuất', style: TextStyle(fontWeight: FontWeight.bold)),
               content: const Text('Bạn có chắc chắn muốn đăng xuất không?'),
               actions: [
                 TextButton(
@@ -152,7 +215,7 @@ class ProfileScreen extends StatelessWidget {
                           (route) => false,
                     );
                   },
-                  child: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+                  child: const Text('Đăng xuất', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -162,8 +225,6 @@ class ProfileScreen extends StatelessWidget {
             context,
             MaterialPageRoute(builder: (context) => const MyMatchesScreen()),
           );
-        } else {
-          // Xử lý sự kiện khác
         }
       },
     );

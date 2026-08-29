@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
 
 void main() {
@@ -11,14 +12,12 @@ class DinkMateApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final baseTheme = AppTheme.theme;
     return MaterialApp(
       title: 'DinkMate',
-      debugShowCheckedModeBanner: false, // Tắt chữ "DEBUG" ở góc phải
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-        useMaterial3: true,
-        // Dùng font chữ của Google cho toàn App
-        textTheme: GoogleFonts.nunitoTextTheme(Theme.of(context).textTheme),
+      debugShowCheckedModeBanner: false,
+      theme: baseTheme.copyWith(
+        textTheme: GoogleFonts.nunitoTextTheme(baseTheme.textTheme),
       ),
       home: const LoginScreen(),
     );
