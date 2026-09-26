@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
+import 'auth_service.dart';
 import '../utils/models.dart';
 
 class CourtService {
@@ -14,7 +15,10 @@ class CourtService {
         }
       }
 
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(
+        Uri.parse(url),
+        headers: AuthService.authHeaders,
+      );
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);

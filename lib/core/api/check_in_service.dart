@@ -1,17 +1,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'api_config.dart';
+import 'auth_service.dart';
 
 class CheckInService {
-  // đổi ip ở đây
-  // - dùng máy ảo Android: 10.0.2.2
-  // - cắm đt thật: IP LAN của máy tính (VD: 192.168.1.x)
-  static const String baseUrl = 'http://10.0.2.2:3000/api';
-
   static Future<String?> verifyQrCode(String matchId, String playerId, String qrCode) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/matches/check-in'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(ApiConfig.checkIn),
+        headers: AuthService.authHeaders,
         body: jsonEncode({
           'match_id': matchId,
           'player_id': playerId,
