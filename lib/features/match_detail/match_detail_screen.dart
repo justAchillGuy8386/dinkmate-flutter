@@ -3,6 +3,7 @@ import '../../features/check_in/qr_scanner_screen.dart';
 import '../../features/match_detail/submit_score_screen.dart';
 import 'dispute_screen.dart';
 import '../../core/api/check_in_service.dart';
+import '../../core/api/match_service.dart';
 import '../../core/api/auth_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../main_wrapper_screen.dart';
@@ -606,6 +607,69 @@ class MatchDetailScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            icon: const Icon(Icons.cancel_outlined, size: 20),
+            label: const Text(
+              "HỦY TRẬN / ĐỐI THỦ VẮNG MẶT",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (dialogCtx) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  title: const Text('Xác nhận hủy trận', style: TextStyle(fontWeight: FontWeight.bold)),
+                  content: const Text(
+                    'Nếu đối thủ không đến sân hoặc trận đấu không thể diễn ra, trận đấu sẽ bị hủy.\n\nTrường hợp bạn đã có mặt check-in mà đối thủ vắng mặt, đối thủ sẽ bị phạt trừ 10 điểm uy tín!',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogCtx),
+                      child: const Text('Quay lại', style: TextStyle(color: Colors.grey)),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(dialogCtx);
+                        final result = await MatchService.cancelMatch(
+                          matchId: matchId,
+                          userId: currentUserId,
+                        );
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(result['message']),
+                              backgroundColor: result['success'] ? Colors.orange : Colors.red,
+                            ),
+                          );
+
+                          if (result['success']) {
+                            Navigator.of(context).popUntil((route) => route.isFirst);
+                          }
+                        }
+                      },
+                      child: const Text('Xác nhận hủy'),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ],

@@ -153,4 +153,50 @@ class MatchService {
       return false;
     }
   }
+
+  static Future<bool> cancelMatchRequest({required String userId, String? requestId}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/match-requests/cancel'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': userId,
+          if (requestId != null) 'request_id': requestId,
+        }),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Lỗi khi hủy yêu cầu: $e");
+      return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>> cancelMatch({
+    required String matchId,
+    required String userId,
+    String? reason,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/matches/cancel'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'match_id': matchId,
+          'user_id': userId,
+          if (reason != null) 'reason': reason,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message'] ?? 'Đã hủy trận đấu'};
+      } else {
+        return {'success': false, 'message': data['error'] ?? 'Không thể hủy trận'};
+      }
+    } catch (e) {
+      print("Lỗi khi hủy trận: $e");
+      return {'success': false, 'message': 'Không thể kết nối đến máy chủ'};
+    }
+  }
 }

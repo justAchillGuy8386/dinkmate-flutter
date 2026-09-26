@@ -479,12 +479,67 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                     width: double.infinity,
                     height: 44,
                     child: isMyMatch
-                        ? Center(
-                      child: Text(
-                        "Đang chờ người chơi khác nhận kèo...",
-                        style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic, fontSize: 13),
-                      ),
-                    )
+                        ? Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  "Đang chờ người nhận kèo...",
+                                  style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic, fontSize: 13),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                  side: const BorderSide(color: Colors.redAccent),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                icon: const Icon(Icons.close, size: 16),
+                                label: const Text("HỦY KÈO", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      title: const Text('Hủy kèo giao lưu', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      content: const Text('Bạn có chắc chắn muốn hủy kèo giao lưu này không?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: const Text('Không', style: TextStyle(color: Colors.grey)),
+                                        ),
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.redAccent,
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          ),
+                                          onPressed: () async {
+                                            Navigator.pop(context);
+                                            final ok = await MatchService.cancelMatchRequest(userId: myUserId, requestId: match.id);
+                                            if (context.mounted) {
+                                              if (ok) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('Đã hủy kèo giao lưu thành công!'), backgroundColor: Colors.orange),
+                                                );
+                                                _loadMatches();
+                                              } else {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('Không thể hủy kèo, vui lòng thử lại!'), backgroundColor: Colors.red),
+                                                );
+                                              }
+                                            }
+                                          },
+                                          child: const Text('Đồng ý hủy'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          )
                         : Container(
                       decoration: BoxDecoration(
                         gradient: AppTheme.primaryGradient,

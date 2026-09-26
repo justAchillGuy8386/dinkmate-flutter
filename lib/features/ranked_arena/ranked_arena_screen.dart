@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../../core/api/api_config.dart';
 import '../../core/api/auth_service.dart';
 import '../../core/api/court_service.dart';
+import '../../core/api/match_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/models.dart';
 import '../match_detail/match_detail_screen.dart';
@@ -48,6 +49,27 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
     _pulseController.dispose();
     _pollingTimer?.cancel();
     super.dispose();
+  }
+
+  void _stopSearching() async {
+    final String myUserId = AuthService.currentUser?['id'] ?? "";
+    setState(() => _isSearching = false);
+    _pulseController.stop();
+    _pulseController.reset();
+    _pollingTimer?.cancel();
+
+    if (myUserId.isNotEmpty) {
+      await MatchService.cancelMatchRequest(userId: myUserId);
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Đã hủy tìm kiếm trận đấu xếp hạng."),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 
   void _startSearching() async {
@@ -172,18 +194,25 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
           textAlign: TextAlign.center,
           style: TextStyle(color: AppTheme.darkSlate, height: 1.4),
         ),
-        actionsAlignment: MainAxisAlignment.center,
+        actionsAlignment: MainAxisAlignment.spaceBetween,
         actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _stopSearching();
+            },
+            child: const Text("HỦY TÌM KIẾM", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.orange,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
             onPressed: () {
               Navigator.pop(context);
             },
-            child: const Text("ĐÃ HIỂU", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text("TÌM NGẦM", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
       ),
@@ -321,7 +350,7 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
                     if (_isSearching) _buildPulseWidget(0.66),
 
                     GestureDetector(
-                      onTap: _isSearching ? null : _startSearching,
+                      onTap: _isSearching ? _stopSearching : _startSearching,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         width: _isSearching ? 140 : 170,
@@ -329,25 +358,24 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: _isSearching
-                              ? null
+                              ? const LinearGradient(colors: [Colors.redAccent, Colors.red])
                               : AppTheme.rankedGradient,
-                          color: _isSearching ? Colors.grey[400] : null,
-                          boxShadow: _isSearching
-                              ? []
-                              : AppTheme.glowShadow(AppTheme.orange),
+                          boxShadow: [
+                            AppTheme.glowShadow(_isSearching ? Colors.redAccent : AppTheme.orange).first,
+                          ],
                         ),
                         child: Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                _isSearching ? Icons.radar : Icons.local_fire_department,
+                                _isSearching ? Icons.close : Icons.local_fire_department,
                                 color: Colors.white,
                                 size: _isSearching ? 44 : 56,
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                _isSearching ? "ĐANG TÌM..." : "TÌM TRẬN",
+                                _isSearching ? "HỦY TÌM" : "TÌM TRẬN",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
