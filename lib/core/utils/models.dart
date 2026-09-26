@@ -36,3 +36,35 @@ class MatchRequest {
     );
   }
 }
+
+class CourtModel {
+  final String id;
+  final String name;
+  final String address;
+  final double latitude;
+  final double longitude;
+  final String? qrCodeValue;
+  final double? distanceKm;
+
+  CourtModel({
+    required this.id,
+    required this.name,
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+    this.qrCodeValue,
+    this.distanceKm,
+  });
+
+  factory CourtModel.fromJson(Map<String, dynamic> json) {
+    return CourtModel(
+      id: json['id'] ?? '',
+      name: json['name'] ?? 'Sân Pickleball',
+      address: json['address'] ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
+      qrCodeValue: json['qr_code_value'],
+      distanceKm: (json['distance_km'] as num?)?.toDouble(),
+    );
+  }
+}

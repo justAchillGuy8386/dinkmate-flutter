@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../core/api/api_config.dart';
 import '../../core/api/auth_service.dart';
+import '../../core/api/court_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/models.dart';
 import '../match_detail/match_detail_screen.dart';
 
 class RankedArenaScreen extends StatefulWidget {
@@ -18,6 +20,8 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
   bool _isSearching = false;
   late AnimationController _pulseController;
   Timer? _pollingTimer;
+  List<CourtModel> _courts = [];
+  String? _selectedCourtId;
 
   @override
   void initState() {
@@ -26,6 +30,17 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     );
+    _loadCourts();
+  }
+
+  void _loadCourts() async {
+    final courts = await CourtService.getCourts();
+    if (mounted && courts.isNotEmpty) {
+      setState(() {
+        _courts = courts;
+        _selectedCourtId = courts.first.id;
+      });
+    }
   }
 
   @override
@@ -68,12 +83,13 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
 
   Future<bool> _submitMatchRequest(String userId) async {
     try {
+      final courtIdToUse = _selectedCourtId ?? (_courts.isNotEmpty ? _courts.first.id : "123456789");
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/match-requests'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'creator_id': userId,
-          'court_id': "123456789",
+          'court_id': courtIdToUse,
           'scheduled_time': DateTime.now().toIso8601String(),
           'is_ranked': true
         }),
@@ -251,7 +267,47 @@ class _RankedArenaScreenState extends State<RankedArenaScreen> with SingleTicker
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Color(0xFF64748B), fontSize: 14, height: 1.4),
               ),
-              const SizedBox(height: 50),
+              if (_courts.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppTheme.cardBorder),
+                    boxShadow: AppTheme.cardShadow,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on, color: AppTheme.orange, size: 18),
+                      const SizedBox(width: 8),
+                      DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _courts.any((c) => c.id == _selectedCourtId)
+                              ? _selectedCourtId
+                              : _courts.first.id,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.darkSlate),
+                          items: _courts.map((court) {
+                            return DropdownMenuItem<String>(
+                              value: court.id,
+                              child: Text(court.name),
+                            );
+                          }).toList(),
+                          onChanged: _isSearching
+                              ? null
+                              : (newId) {
+                                  if (newId != null) {
+                                    setState(() => _selectedCourtId = newId);
+                                  }
+                                },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 35),
 
               // Pulsing Radar Stack
               SizedBox(

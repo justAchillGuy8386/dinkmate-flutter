@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../core/api/match_service.dart';
+import '../../core/api/court_service.dart';
 import '../../core/api/api_config.dart';
 import '../../core/api/auth_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -19,6 +20,7 @@ class MatchFeedScreen extends StatefulWidget {
 
 class _MatchFeedScreenState extends State<MatchFeedScreen> {
   List<MatchRequest> _matches = [];
+  List<CourtModel> _courts = [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -36,8 +38,10 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
 
     try {
       final data = await MatchService.getAvailableMatches();
+      final courts = await CourtService.getCourts();
       setState(() {
         _matches = data;
+        _courts = courts;
         _isLoading = false;
       });
     } catch (e) {
@@ -52,7 +56,7 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
     await _loadMatches();
   }
 
-  Future<void> _submitCasualMatch(DateTime scheduledTime) async {
+  Future<void> _submitCasualMatch(DateTime scheduledTime, String courtId) async {
     final String myUserId = AuthService.currentUser?['id'] ?? "";
     if (myUserId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -71,7 +75,7 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'creator_id': myUserId,
-          'court_id': "123456789",
+          'court_id': courtId,
           'scheduled_time': scheduledTime.toIso8601String(),
           'is_ranked': false
         }),
@@ -104,6 +108,7 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
   void _showCreateMatchBottomSheet() {
     DateTime selectedDate = DateTime.now();
     TimeOfDay selectedTime = TimeOfDay.now();
+    String selectedCourtId = _courts.isNotEmpty ? _courts.first.id : "123456789";
 
     showModalBottomSheet(
       context: context,
@@ -147,6 +152,60 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  // 1. Chọn sân thi đấu
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppTheme.cardBorder),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.stadium_outlined, color: AppTheme.primary),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _courts.any((c) => c.id == selectedCourtId)
+                                  ? selectedCourtId
+                                  : (_courts.isNotEmpty ? _courts.first.id : null),
+                              isExpanded: true,
+                              hint: const Text("Chọn sân thi đấu", style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                              items: _courts.map((court) {
+                                return DropdownMenuItem<String>(
+                                  value: court.id,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        court.name,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.darkSlate),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (court.address.isNotEmpty)
+                                        Text(
+                                          court.address,
+                                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (newId) {
+                                if (newId != null) {
+                                  setModalState(() => selectedCourtId = newId);
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
 
                   ListTile(
                     shape: RoundedRectangleBorder(
@@ -222,7 +281,7 @@ class _MatchFeedScreenState extends State<MatchFeedScreen> {
                           );
 
                           Navigator.pop(context);
-                          _submitCasualMatch(scheduledTime);
+                          _submitCasualMatch(scheduledTime, selectedCourtId);
                         },
                         child: const Text(
                           'ĐĂNG KÈO LÊN BẢNG TIN',
